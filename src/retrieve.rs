@@ -13,16 +13,14 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::any::Any;
+use std::ops::Range;
 
-pub type Data = dyn Any;
-pub type Timestamp = u64;
+use {Data, Timestamp};
 
-pub use retrieve::Retrieve;
-pub use store::Store;
-pub use util::UnsafeSlice;
-
-mod retrieve;
-//mod storage;
-mod store;
-mod util;
+pub trait Retrieve {
+    fn retrieve(&self, timestamp: Timestamp) -> Box<Data>;
+    fn retrieve_all(&self) -> Box<Data>;
+    fn retrieve_from(&self, timestamp: Timestamp) -> Box<Data>;
+    fn retrieve_to(&self, timestamp: Timestamp) -> Box<Data>;
+    fn retrieve_range(&self, range: Range<Timestamp>) -> Box<Data>;
+}

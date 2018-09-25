@@ -13,16 +13,22 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::any::Any;
+use std::slice;
 
-pub type Data = dyn Any;
-pub type Timestamp = u64;
+pub struct UnsafeSlice<T> {
+    ptr: *const T,
+    len: usize,
+}
 
-pub use retrieve::Retrieve;
-pub use store::Store;
-pub use util::UnsafeSlice;
+impl<T> UnsafeSlice<T> {
+    pub fn new(ptr: *const T, len: usize) -> Self {
+        Self {
+            ptr: ptr,
+            len: len,
+        }
+    }
 
-mod retrieve;
-//mod storage;
-mod store;
-mod util;
+    pub unsafe fn as_slice(&self) -> &[T] {
+        slice::from_raw_parts(self.ptr, self.len)
+    }
+}
