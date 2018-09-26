@@ -13,13 +13,8 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::any::Any;
+pub use self::retrieve::Retrieve;
+pub use self::store::Store;
 
-pub type Data = dyn Any;
-pub type Timestamp = u64;
-
-pub use storage::{Retrieve, Store};
-pub use util::UnsafeSlice;
-
-mod storage;
-mod util;
+mod retrieve;
+mod store;
