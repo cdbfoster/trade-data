@@ -15,7 +15,7 @@
 
 pub use self::file::FileStorage;
 pub use self::retrieve::Retrieve;
-pub use self::store::Store;
+pub use self::store::{Storable, Store};
 
 mod file;
 mod retrieve;

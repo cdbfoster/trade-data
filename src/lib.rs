@@ -21,5 +21,5 @@ pub type Timestamp = u64;
 pub use storage::{Retrieve, Store};
 pub use util::UnsafeSlice;
 
-mod storage;
+pub mod storage;
 mod util;

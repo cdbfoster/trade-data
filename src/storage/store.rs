@@ -13,8 +13,15 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
-use Data;
+use std::io;
+
+use {Data, Timestamp};
 
 pub trait Store {
-    fn store(&mut self, data: Box<Data>);
+    fn store(&mut self, timestamp: Timestamp, data: Box<Data>) -> io::Result<()>;
+}
+
+pub trait Storable {
+    fn size() -> usize;
+    fn into_bytes(self) -> Vec<u8>;
 }
