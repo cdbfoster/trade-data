@@ -13,14 +13,15 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::io;
 use std::ops::Range;
 
 use {Data, Timestamp};
 
 pub trait Retrieve {
-    fn retrieve(&self, timestamp: Timestamp) -> Box<Data>;
-    fn retrieve_all(&self) -> Box<Data>;
-    fn retrieve_from(&self, timestamp: Timestamp) -> Box<Data>;
-    fn retrieve_to(&self, timestamp: Timestamp) -> Box<Data>;
-    fn retrieve_range(&self, range: Range<Timestamp>) -> Box<Data>;
+    fn retrieve(&self, timestamp: Timestamp) -> io::Result<Box<Data>>;
+    fn retrieve_all(&self) -> io::Result<Box<Data>>;
+    fn retrieve_from(&self, timestamp: Timestamp) -> io::Result<Box<Data>>;
+    fn retrieve_to(&self, timestamp: Timestamp) -> io::Result<Box<Data>>;
+    fn retrieve_range(&self, range: Range<Timestamp>) -> io::Result<Box<Data>>;
 }
