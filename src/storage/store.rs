@@ -21,7 +21,7 @@ pub trait Store {
     fn store(&mut self, timestamp: Timestamp, data: Box<Data>) -> io::Result<()>;
 }
 
-pub trait Storable {
+pub trait Storable<T: Store> {
     fn size() -> usize;
     fn into_bytes(self) -> Vec<u8>;
 }
