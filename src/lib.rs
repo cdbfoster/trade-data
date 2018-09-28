@@ -18,7 +18,7 @@ use std::any::Any;
 pub type Data = dyn Any;
 pub type Timestamp = u64;
 
-pub use storage::{Retrieve, Store};
+pub use storage::Storage;
 pub use util::UnsafeSlice;
 
 pub mod storage;

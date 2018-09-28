@@ -18,10 +18,20 @@ use std::ops::Range;
 
 use {Data, Timestamp};
 
-pub trait Retrieve {
+pub trait Storage {
+    fn store(&mut self, timestamp: Timestamp, data: Box<Data>) -> io::Result<()>;
+
     fn retrieve(&self, timestamp: Timestamp) -> io::Result<Box<Data>>;
     fn retrieve_all(&self) -> io::Result<Box<Data>>;
     fn retrieve_from(&self, timestamp: Timestamp) -> io::Result<Box<Data>>;
     fn retrieve_to(&self, timestamp: Timestamp) -> io::Result<Box<Data>>;
     fn retrieve_range(&self, range: Range<Timestamp>) -> io::Result<Box<Data>>;
+
+    fn len(&self) -> usize;
+}
+
+pub trait Storable<T: Storage> {
+    fn size() -> usize;
+    fn into_bytes(self) -> Vec<u8>;
+    fn from_bytes(buffer: &[u8]) -> io::Result<Self> where Self: Sized;
 }

@@ -14,9 +14,7 @@
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
 pub use self::file::FileStorage;
-pub use self::retrieve::Retrieve;
-pub use self::store::{Storable, Store};
+pub use self::storage::{Storable, Storage};
 
 mod file;
-mod retrieve;
-mod store;
+mod storage;
