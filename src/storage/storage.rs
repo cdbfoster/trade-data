@@ -97,7 +97,7 @@ pub trait Storage {
     fn len(&self) -> usize;
 }
 
-pub trait Storable<T: Storage>: 'static + Default {
+pub trait Storable<T: Storage>: 'static + Copy + Default {
     fn size() -> usize;
     fn into_bytes(self) -> Vec<u8>;
     fn from_bytes(buffer: &[u8]) -> io::Result<Self> where Self: Sized;

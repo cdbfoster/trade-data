@@ -33,7 +33,7 @@ pub struct FileStorage<T> {
     _phantom: PhantomData<T>,
 }
 
-impl<T> FileStorage<T> where T: 'static + Copy + Storable<FileStorage<T>> {
+impl<T> FileStorage<T> where T: Storable<FileStorage<T>> {
     pub fn new(filename: &str) -> io::Result<Self> {
         let mut file = OpenOptions::new()
             .read(true)
@@ -77,7 +77,7 @@ impl<T> FileStorage<T> where T: 'static + Copy + Storable<FileStorage<T>> {
     }
 }
 
-impl<T> Storage for FileStorage<T> where T: 'static + Copy + Storable<FileStorage<T>> {
+impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
     fn store(&mut self, timestamp: Timestamp, data: Box<Data>) -> io::Result<()> {
         if timestamp < self.last_time {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, "Passed timestamp was before the last recorded timestamp!"));
