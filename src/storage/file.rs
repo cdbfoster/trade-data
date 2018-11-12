@@ -20,7 +20,7 @@ use std::ops::Range;
 use std::str::FromStr;
 
 use {Data, Timestamp};
-use storage::{Storable, Storage};
+use storage::{Retrieval, RetrievalDirection, RetrievalOptions, Storable, Storage};
 
 // The number of additional bytes stored per item
 const PADDING: u64 = 15; // 14 bytes for the timestamp and a space, and then a newline at the end
@@ -100,24 +100,24 @@ impl<T> Storage for FileStorage<T> where T: 'static + Copy + Storable<FileStorag
         }
     }
 
-    fn retrieve(&self, timestamp: Timestamp) -> io::Result<Box<Data>> {
-        Ok(Box::new(Vec::<T>::new()))
+    fn retrieve(&self, timestamp: Timestamp, retrieval_direction: RetrievalDirection) -> io::Result<Retrieval> {
+        Ok(Retrieval::new(Box::new((timestamp, 0))))
     }
 
-    fn retrieve_all(&self) -> io::Result<Box<Data>> {
-        Ok(Box::new(Vec::<T>::new()))
+    fn retrieve_all(&self, retrieval_options: RetrievalOptions) -> io::Result<Retrieval> {
+        Ok(Retrieval::new(Box::new(Vec::<(Timestamp, T)>::new())))
     }
 
-    fn retrieve_from(&self, timestamp: Timestamp) -> io::Result<Box<Data>> {
-        Ok(Box::new(Vec::<T>::new()))
+    fn retrieve_from(&self, timestamp: Timestamp, retrieval_options: RetrievalOptions) -> io::Result<Retrieval> {
+        Ok(Retrieval::new(Box::new(Vec::<(Timestamp, T)>::new())))
     }
 
-    fn retrieve_to(&self, timestamp: Timestamp) -> io::Result<Box<Data>> {
-        Ok(Box::new(Vec::<T>::new()))
+    fn retrieve_to(&self, timestamp: Timestamp, retrieval_options: RetrievalOptions) -> io::Result<Retrieval> {
+        Ok(Retrieval::new(Box::new(Vec::<(Timestamp, T)>::new())))
     }
 
-    fn retrieve_range(&self, range: Range<Timestamp>) -> io::Result<Box<Data>> {
-        Ok(Box::new(Vec::<T>::new()))
+    fn retrieve_range(&self, range: Range<Timestamp>, retrieval_options: RetrievalOptions) -> io::Result<Retrieval> {
+        Ok(Retrieval::new(Box::new(Vec::<(Timestamp, T)>::new())))
     }
 
     fn len(&self) -> usize {
@@ -125,7 +125,7 @@ impl<T> Storage for FileStorage<T> where T: 'static + Copy + Storable<FileStorag
     }
 }
 
-fn binary_search_for_timestamp(file: &mut File, timestamp: Timestamp) ->
+//fn binary_search_for_timestamp(file: &mut File, timestamp: Timestamp) ->
 
 #[cfg(test)]
 mod tests {

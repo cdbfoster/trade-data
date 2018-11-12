@@ -16,6 +16,7 @@
 use std::any::Any;
 
 pub type Data = dyn Any;
+pub type Interval = Timestamp;
 pub type Timestamp = u64;
 
 pub use storage::Storage;
