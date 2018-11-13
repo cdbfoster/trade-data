@@ -14,7 +14,7 @@
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fs::{File, OpenOptions};
-use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
 use std::ops::Range;
 use std::str::{self, FromStr};
@@ -83,17 +83,18 @@ impl<T> FileStorage<T> where T: Storable<FileStorage<T>> {
 
 impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
     fn store(&mut self, timestamp: Timestamp, data: Box<Data>) -> io::Result<()> {
-        if timestamp <= self.last_time {
+        if self.items > 0 && timestamp <= self.last_time {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, "Passed timestamp was equal to or before the last recorded timestamp!"));
         }
 
         if let Some(&data) = data.downcast_ref::<T>() {
             self.file.seek(SeekFrom::End(0))?;
 
-            // Format the data and write it
-            self.file.write(&format!("{:013} ", timestamp).into_bytes())?;
-            self.file.write(&data.into_bytes())?;
-            self.file.write(b"\n")?;
+            write_record(&mut self.file, timestamp, data)?;
+
+            if self.items == 0 {
+                self.first_time = timestamp;
+            }
 
             self.items += 1;
             self.last_time = timestamp;
@@ -145,6 +146,17 @@ fn read_record<T: Storable<FileStorage<T>>, U: Read>(file: &mut U, buffer: &mut 
     } else {
         Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data!"))
     }
+}
+
+fn write_record<T: Storable<FileStorage<T>>>(file: &mut File, timestamp: Timestamp, data: T) -> io::Result<()> {
+    // We don't want to incur a write per part of the data
+    let mut buffer = BufWriter::with_capacity(PADDING as usize + T::size(), file);
+
+    // Format the data and write it
+    buffer.write(&format!("{:013} ", timestamp).into_bytes())?;
+    buffer.write(&data.into_bytes())?;
+    buffer.write(b"\n")?;
+    buffer.flush()
 }
 
 //fn binary_search_for_timestamp(file: &mut File, timestamp: Timestamp) ->
