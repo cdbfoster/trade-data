@@ -14,10 +14,10 @@
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fs::{File, OpenOptions};
-use std::io::{self, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
 use std::ops::Range;
-use std::str::FromStr;
+use std::str::{self, FromStr};
 
 use {Data, Timestamp};
 use storage::{Retrieval, RetrievalDirection, RetrievalOptions, Storable, Storage};
@@ -41,10 +41,11 @@ impl<T> FileStorage<T> where T: Storable<FileStorage<T>> {
             .create(true)
             .open(filename)?;
 
+        let item_size = PADDING as usize + T::size();
+
         // Get the length of the file by seeking to the end
         let end = file.seek(SeekFrom::End(0))?;
 
-        let item_size = PADDING as usize + T::size();
         let items = if end as usize % item_size == 0 {
             end as usize / item_size
         } else {
@@ -56,13 +57,8 @@ impl<T> FileStorage<T> where T: Storable<FileStorage<T>> {
             // Seek to the beginning of the last item
             file.seek(SeekFrom::End(-(item_size as i64)))?;
 
-            // Read the rest of the file to a string
-            let mut last_value = String::with_capacity(item_size);
-            file.read_to_string(&mut last_value)?;
-
-            // Split on whitespace and parse the first chunk
-            let mut parts = last_value.split_whitespace();
-            Timestamp::from_str(parts.next().unwrap()).unwrap()
+            let mut buffer = vec![0u8; item_size];
+            read_record::<T, File>(&mut file, &mut buffer)?.0
         } else {
             0
         };
@@ -122,6 +118,24 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
 
     fn len(&self) -> usize {
         self.items
+    }
+}
+
+fn read_record<T: Storable<FileStorage<T>>, U: Read>(file: &mut U, buffer: &mut [u8]) -> io::Result<(Timestamp, T)> {
+    debug_assert_eq!(buffer.len(), PADDING as usize + T::size(), "read_record was passed a buffer of the wrong size!");
+
+    file.read_exact(buffer)?;
+
+    if let Ok(str_buffer) = str::from_utf8(buffer) {
+        // Parse the string into chunks
+        let mut parts = str_buffer.split_whitespace();
+
+        Ok((
+            Timestamp::from_str(parts.next().unwrap()).unwrap(), // The first chunk is the timestamp
+            T::from_bytes(parts.next().unwrap().as_bytes())?,    // The second chunk is the data
+        ))
+    } else {
+        Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data!"))
     }
 }
 
