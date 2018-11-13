@@ -133,7 +133,24 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
     }
 }
 
-fn binary_search_for_timestamp<F: Read + Seek>(file: &mut F, buffer: &mut [u8], timestamp: Timestamp, beginning_offset: usize, end_offset: usize) -> io::Result<usize> {
+fn binary_search_for_timestamp<F: Read + Seek>(file: &mut F, buffer: &mut [u8], timestamp: Timestamp, beginning_offset: u64, end_offset: u64) -> io::Result<u64> {
+    file.seek(SeekFrom::Start(beginning_offset))?;
+    let beginning_timestamp = read_timestamp(file, buffer)?;
+
+    if timestamp < beginning_timestamp {
+        return Err(io::Error::new(io::ErrorKind::NotFound, "Search timestamp is before the current range"));
+    } else if timestamp == beginning_timestamp {
+        return Ok(beginning_offset);
+    }
+
+    file.seek(SeekFrom::Start(end_offset))?;
+    let end_timestamp = read_timestamp(file, buffer)?;
+
+    if timestamp > end_timestamp {
+        return Err(io::Error::new(io::ErrorKind::NotFound, "Search timestamp is after the current range"));
+    } else if timestamp == end_timestamp {
+        return Ok(end_offset);
+    }
 
     Ok(0)
 }
