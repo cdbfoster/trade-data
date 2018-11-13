@@ -79,8 +79,8 @@ impl<T> FileStorage<T> where T: Storable<FileStorage<T>> {
 
 impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
     fn store(&mut self, timestamp: Timestamp, data: Box<Data>) -> io::Result<()> {
-        if timestamp < self.last_time {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Passed timestamp was before the last recorded timestamp!"));
+        if timestamp <= self.last_time {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Passed timestamp was equal to or before the last recorded timestamp!"));
         }
 
         if let Some(&data) = data.downcast_ref::<T>() {
@@ -198,7 +198,7 @@ mod tests {
         let mut fs = FileStorage::<i32>::new("test_file_storage_cannot_write_old_time").unwrap();
 
         fs.store(2, Box::new(1)).unwrap();
-        if fs.store(1, Box::new(2)).is_ok() {
+        if fs.store(1, Box::new(2)).is_ok() || fs.store(2, Box::new(2)).is_ok() {
             panic!("Store should have failed here.");
         }
     }
@@ -213,7 +213,7 @@ mod tests {
         mem::drop(fs);
 
         let mut fs = FileStorage::<i32>::new("test_file_storage_reads_last_time").unwrap();
-        if fs.store(1, Box::new(3)).is_ok() {
+        if fs.store(2, Box::new(3)).is_ok() {
             panic!("Store should have failed here.");
         }
     }
