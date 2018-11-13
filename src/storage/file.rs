@@ -22,8 +22,11 @@ use std::str::{self, FromStr};
 use {Data, Timestamp};
 use storage::{Retrieval, RetrievalDirection, RetrievalOptions, Storable, Storage};
 
+// The number of bytes a timestamp occupies in the file
+const TIMESTAMP_SIZE: u64 = 13;
+
 // The number of additional bytes stored per item
-const PADDING: u64 = 15; // 14 bytes for the timestamp and a space, and then a newline at the end
+const PADDING: u64 = TIMESTAMP_SIZE + 2; // 14 bytes for the timestamp and a space, and then a newline at the end
 
 pub struct FileStorage<T> {
     file: File,
@@ -130,7 +133,7 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
     }
 }
 
-fn read_record<T: Storable<FileStorage<T>>, U: Read>(file: &mut U, buffer: &mut [u8]) -> io::Result<(Timestamp, T)> {
+fn read_record<T: Storable<FileStorage<T>>, F: Read>(file: &mut F, buffer: &mut [u8]) -> io::Result<(Timestamp, T)> {
     debug_assert_eq!(buffer.len(), PADDING as usize + T::size(), "read_record was passed a buffer of the wrong size!");
 
     file.read_exact(buffer)?;
@@ -148,12 +151,24 @@ fn read_record<T: Storable<FileStorage<T>>, U: Read>(file: &mut U, buffer: &mut 
     }
 }
 
+fn read_timestamp<F: Read>(file: &mut F, buffer: &mut [u8]) -> io::Result<Timestamp> {
+    debug_assert_eq!(buffer.len(), TIMESTAMP_SIZE as usize, "read_timestamp was passed a buffer of the wrong size!");
+
+    file.read_exact(buffer)?;
+
+    if let Ok(str_buffer) = str::from_utf8(buffer) {
+        Ok(Timestamp::from_str(str_buffer).unwrap())
+    } else {
+        Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data!"))
+    }
+}
+
 fn write_record<T: Storable<FileStorage<T>>>(file: &mut File, timestamp: Timestamp, data: T) -> io::Result<()> {
     // We don't want to incur a write per part of the data
     let mut buffer = BufWriter::with_capacity(PADDING as usize + T::size(), file);
 
     // Format the data and write it
-    buffer.write(&format!("{:013} ", timestamp).into_bytes())?;
+    buffer.write(&format!("{:0size$} ", timestamp, size = TIMESTAMP_SIZE as usize).into_bytes())?;
     buffer.write(&data.into_bytes())?;
     buffer.write(b"\n")?;
     buffer.flush()
