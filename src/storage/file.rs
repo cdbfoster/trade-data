@@ -29,6 +29,7 @@ pub struct FileStorage<T> {
     file: File,
     item_size: usize,
     items: usize,
+    first_time: Timestamp,
     last_time: Timestamp,
     _phantom: PhantomData<T>,
 }
@@ -41,10 +42,10 @@ impl<T> FileStorage<T> where T: Storable<FileStorage<T>> {
             .create(true)
             .open(filename)?;
 
-        let item_size = PADDING as usize + T::size();
-
         // Get the length of the file by seeking to the end
         let end = file.seek(SeekFrom::End(0))?;
+
+        let item_size = PADDING as usize + T::size();
 
         let items = if end as usize % item_size == 0 {
             end as usize / item_size
@@ -53,20 +54,27 @@ impl<T> FileStorage<T> where T: Storable<FileStorage<T>> {
         };
 
         // If the file is bigger than a single element,
-        let last_time = if end >= item_size as u64 {
+        let (first_time, last_time) = if end >= item_size as u64 {
+            let mut buffer = vec![0u8; item_size];
+
+            // Seek to the beginning of the first item
+            file.seek(SeekFrom::Start(0))?;
+            let first_time = read_record::<T, File>(&mut file, &mut buffer)?.0;
+
             // Seek to the beginning of the last item
             file.seek(SeekFrom::End(-(item_size as i64)))?;
+            let last_time = read_record::<T, File>(&mut file, &mut buffer)?.0;
 
-            let mut buffer = vec![0u8; item_size];
-            read_record::<T, File>(&mut file, &mut buffer)?.0
+            (first_time, last_time)
         } else {
-            0
+            (0, 0)
         };
 
         Ok(Self {
             file: file,
             item_size: item_size,
             items: items,
+            first_time: first_time,
             last_time: last_time,
             _phantom: PhantomData,
         })
