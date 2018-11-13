@@ -133,6 +133,11 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
     }
 }
 
+fn binary_search_for_timestamp<F: Read + Seek>(file: &mut F, buffer: &mut [u8], timestamp: Timestamp, beginning_offset: usize, end_offset: usize) -> io::Result<usize> {
+
+    Ok(0)
+}
+
 fn read_record<T: Storable<FileStorage<T>>, F: Read>(file: &mut F, buffer: &mut [u8]) -> io::Result<(Timestamp, T)> {
     debug_assert_eq!(buffer.len(), PADDING as usize + T::size(), "read_record was passed a buffer of the wrong size!");
 
@@ -173,8 +178,6 @@ fn write_record<T: Storable<FileStorage<T>>>(file: &mut File, timestamp: Timesta
     buffer.write(b"\n")?;
     buffer.flush()
 }
-
-//fn binary_search_for_timestamp(file: &mut File, timestamp: Timestamp) ->
 
 #[cfg(test)]
 mod tests {
