@@ -59,7 +59,7 @@ impl Retrieval {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum RetrievalDirection {
     Forward,
     Backward,
@@ -88,7 +88,7 @@ impl Default for RetrievalOptions {
 pub trait Storage {
     fn store(&mut self, timestamp: Timestamp, data: Box<Data>) -> io::Result<()>;
 
-    fn retrieve(&self, timestamp: Timestamp, retrieval_direction: RetrievalDirection) -> io::Result<Retrieval>;
+    fn retrieve(&self, timestamp: Timestamp, retrieval_direction: Option<RetrievalDirection>) -> io::Result<Retrieval>;
     fn retrieve_all(&self, retrieval_options: RetrievalOptions) -> io::Result<Retrieval>;
     fn retrieve_from(&self, timestamp: Timestamp, retrieval_options: RetrievalOptions) -> io::Result<Retrieval>;
     fn retrieve_to(&self, timestamp: Timestamp, retrieval_options: RetrievalOptions) -> io::Result<Retrieval>;

@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cell::RefCell;
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
@@ -29,11 +30,12 @@ const TIMESTAMP_SIZE: u64 = 13;
 const PADDING: u64 = TIMESTAMP_SIZE + 2; // 14 bytes for the timestamp and a space, and then a newline at the end
 
 pub struct FileStorage<T> {
-    file: File,
+    file: RefCell<File>,
     item_size: usize,
     items: usize,
     first_time: Timestamp,
     last_time: Timestamp,
+    end_offset: u64,
     _phantom: PhantomData<T>,
 }
 
@@ -57,7 +59,7 @@ impl<T> FileStorage<T> where T: Storable<FileStorage<T>> {
         };
 
         // If the file is bigger than a single element,
-        let (first_time, last_time) = if end >= item_size as u64 {
+        let (first_time, last_time, end_offset) = if end >= item_size as u64 {
             let mut buffer = vec![0u8; item_size];
 
             // Seek to the beginning of the first item
@@ -65,20 +67,21 @@ impl<T> FileStorage<T> where T: Storable<FileStorage<T>> {
             let first_time = read_record::<T, File>(&mut file, &mut buffer)?.0;
 
             // Seek to the beginning of the last item
-            file.seek(SeekFrom::End(-(item_size as i64)))?;
+            let end_offset = file.seek(SeekFrom::End(-(item_size as i64)))?;
             let last_time = read_record::<T, File>(&mut file, &mut buffer)?.0;
 
-            (first_time, last_time)
+            (first_time, last_time, end_offset)
         } else {
-            (0, 0)
+            (0, 0, 0)
         };
 
         Ok(Self {
-            file: file,
+            file: RefCell::new(file),
             item_size: item_size,
             items: items,
             first_time: first_time,
             last_time: last_time,
+            end_offset: end_offset,
             _phantom: PhantomData,
         })
     }
@@ -91,9 +94,9 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
         }
 
         if let Some(&data) = data.downcast_ref::<T>() {
-            self.file.seek(SeekFrom::End(0))?;
+            self.file.borrow_mut().seek(SeekFrom::End(0))?;
 
-            write_record(&mut self.file, timestamp, data)?;
+            write_record(&mut self.file.borrow_mut(), timestamp, data)?;
 
             if self.items == 0 {
                 self.first_time = timestamp;
@@ -101,6 +104,7 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
 
             self.items += 1;
             self.last_time = timestamp;
+            self.end_offset += self.item_size as u64;
 
             Ok(())
         } else {
@@ -108,8 +112,19 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
         }
     }
 
-    fn retrieve(&self, timestamp: Timestamp, retrieval_direction: RetrievalDirection) -> io::Result<Retrieval> {
-        Ok(Retrieval::new(Box::new((timestamp, 0))))
+    fn retrieve(&self, timestamp: Timestamp, retrieval_direction: Option<RetrievalDirection>) -> io::Result<Retrieval> {
+        let record_offset = {
+            let mut file = &mut *self.file.borrow_mut();
+            let mut file_buffer = BufReader::new(file);
+            let mut read_buffer = vec![0u8; TIMESTAMP_SIZE as usize];
+
+            binary_search_for_timestamp::<T, BufReader<&mut File>>(&mut file_buffer, &mut read_buffer, retrieval_direction, timestamp, 0, self.end_offset)?
+        };
+
+        self.file.borrow_mut().seek(SeekFrom::Start(record_offset))?;
+        Ok(Retrieval::new(Box::new(
+            read_record::<T, File>(&mut self.file.borrow_mut(), &mut vec![0u8; PADDING as usize + T::size()])?
+        )))
     }
 
     fn retrieve_all(&self, retrieval_options: RetrievalOptions) -> io::Result<Retrieval> {
@@ -133,26 +148,82 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
     }
 }
 
-fn binary_search_for_timestamp<F: Read + Seek>(file: &mut F, buffer: &mut [u8], timestamp: Timestamp, beginning_offset: u64, end_offset: u64) -> io::Result<u64> {
-    file.seek(SeekFrom::Start(beginning_offset))?;
-    let beginning_timestamp = read_timestamp(file, buffer)?;
+fn binary_search_for_timestamp<T: Storable<FileStorage<T>>, F: Read + Seek>(
+    file: &mut F,
+    buffer: &mut [u8],
+    retrieval_direction: Option<RetrievalDirection>,
+    timestamp: Timestamp,
+    start_offset: u64,
+    end_offset: u64,
+) -> io::Result<u64> {
+    // Check the beginning of the range
+    file.seek(SeekFrom::Start(start_offset))?;
+    let start_timestamp = read_timestamp(file, buffer)?;
 
-    if timestamp < beginning_timestamp {
-        return Err(io::Error::new(io::ErrorKind::NotFound, "Search timestamp is before the current range"));
-    } else if timestamp == beginning_timestamp {
-        return Ok(beginning_offset);
+    if timestamp < start_timestamp {
+        // If the timestamp is before the range, but we want to retrieve forward, return the beginning
+        return if retrieval_direction != Some(RetrievalDirection::Forward) {
+            Err(io::Error::new(io::ErrorKind::NotFound, "Search timestamp is before the search range"))
+        } else {
+            Ok(start_offset)
+        };
+    } else if timestamp == start_timestamp {
+        return Ok(start_offset);
     }
 
+    // Check the end of the range
     file.seek(SeekFrom::Start(end_offset))?;
     let end_timestamp = read_timestamp(file, buffer)?;
 
-    if timestamp > end_timestamp {
-        return Err(io::Error::new(io::ErrorKind::NotFound, "Search timestamp is after the current range"));
+    if timestamp < end_timestamp {
+        // If the timestamp is after the range, but we want to retrieve backward, return the end
+        return if retrieval_direction != Some(RetrievalDirection::Backward) {
+            Err(io::Error::new(io::ErrorKind::NotFound, "Search timestamp is after the search range"))
+        } else {
+            Ok(end_offset)
+        };
     } else if timestamp == end_timestamp {
         return Ok(end_offset);
     }
 
-    Ok(0)
+    fn bisect_and_descend<T: Storable<FileStorage<T>>, F: Read + Seek>(
+        file: &mut F,
+        buffer: &mut [u8],
+        retrieval_direction: Option<RetrievalDirection>,
+        timestamp: Timestamp,
+        start_offset: u64,
+        end_offset: u64,
+    ) -> io::Result<u64> {
+        let range = end_offset - start_offset;
+        let range_items = range / (PADDING + T::size() as u64);
+
+        // If we've narrowed it down to just one item, the timestamp must occur between it and the next item.
+        // Depending on the direction we want to retrieve, return it, the next item, or neither.
+        if range_items == 1 {
+            return match retrieval_direction {
+                Some(RetrievalDirection::Forward) => Ok(end_offset),
+                Some(RetrievalDirection::Backward) => Ok(start_offset),
+                None => Err(io::Error::new(io::ErrorKind::NotFound, "Search timestamp was not found")),
+            };
+        }
+
+        let center_offset = start_offset + range_items / 2 * (PADDING + T::size() as u64);
+
+        // Check the center of the range (rounded down)
+        file.seek(SeekFrom::Start(center_offset))?;
+        let center_timestamp = read_timestamp(file, buffer)?;
+
+        // Descend into whichever half contains the timestamp
+        if timestamp < center_timestamp {
+            bisect_and_descend::<T, F>(file, buffer, retrieval_direction, timestamp, start_offset, center_offset)
+        } else if timestamp > center_timestamp {
+            bisect_and_descend::<T, F>(file, buffer, retrieval_direction, timestamp, center_offset, end_offset)
+        } else {
+            Ok(center_offset)
+        }
+    }
+
+    bisect_and_descend::<T, F>(file, buffer, retrieval_direction, timestamp, start_offset, end_offset)
 }
 
 fn read_record<T: Storable<FileStorage<T>>, F: Read>(file: &mut F, buffer: &mut [u8]) -> io::Result<(Timestamp, T)> {
