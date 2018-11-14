@@ -243,24 +243,6 @@ mod tests {
     }
 
     #[test]
-    fn test_file_storage_store() {
-        let _setup_file = SetupFile::new("test_file_storage_store");
-
-        let mut fs = FileStorage::<i32>::new("test_file_storage_store").unwrap();
-
-        fs.store(1, Box::new(1)).unwrap();
-        fs.store(2, Box::new(2)).unwrap();
-        fs.store(3, Box::new(3)).unwrap();
-
-        mem::drop(fs);
-
-        // Read in the values we wrote and compare to what we expected
-        let mut value = String::new();
-        File::open("test_file_storage_store").unwrap().read_to_string(&mut value).unwrap();
-        assert_eq!(&value.into_bytes(), &String::from("0000000000001    1\n0000000000002    2\n0000000000003    3\n").into_bytes());
-    }
-
-    #[test]
     fn test_file_storage_cannot_write_old_time() {
         let _setup_file = SetupFile::new("test_file_storage_cannot_write_old_time");
 
@@ -285,5 +267,23 @@ mod tests {
         if fs.store(2, Box::new(3)).is_ok() {
             panic!("Store should have failed here.");
         }
+    }
+
+    #[test]
+    fn test_file_storage_store() {
+        let _setup_file = SetupFile::new("test_file_storage_store");
+
+        let mut fs = FileStorage::<i32>::new("test_file_storage_store").unwrap();
+
+        fs.store(1, Box::new(1)).unwrap();
+        fs.store(2, Box::new(2)).unwrap();
+        fs.store(3, Box::new(3)).unwrap();
+
+        mem::drop(fs);
+
+        // Read in the values we wrote and compare to what we expected
+        let mut value = String::new();
+        File::open("test_file_storage_store").unwrap().read_to_string(&mut value).unwrap();
+        assert_eq!(&value.into_bytes(), &String::from("0000000000001    1\n0000000000002    2\n0000000000003    3\n").into_bytes());
     }
 }
