@@ -100,11 +100,12 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
 
             if self.items == 0 {
                 self.first_time = timestamp;
+            } else {
+                self.end_offset += self.item_size as u64;
             }
 
             self.items += 1;
             self.last_time = timestamp;
-            self.end_offset += self.item_size as u64;
 
             Ok(())
         } else {
@@ -175,7 +176,7 @@ fn binary_search_for_timestamp<T: Storable<FileStorage<T>>, F: Read + Seek>(
     file.seek(SeekFrom::Start(end_offset))?;
     let end_timestamp = read_timestamp(file, buffer)?;
 
-    if timestamp < end_timestamp {
+    if timestamp > end_timestamp {
         // If the timestamp is after the range, but we want to retrieve backward, return the end
         return if retrieval_direction != Some(RetrievalDirection::Backward) {
             Err(io::Error::new(io::ErrorKind::NotFound, "Search timestamp is after the search range"))
