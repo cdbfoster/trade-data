@@ -155,6 +155,10 @@ fn binary_search_for_timestamp<T: Storable<FileStorage<T>>, F: Read + Seek>(
     start_offset: u64,
     end_offset: u64,
 ) -> io::Result<u64> {
+    if start_offset == end_offset {
+        return Err(io::Error::new(io::ErrorKind::NotFound, "No items in search range"));
+    }
+
     // Check the beginning of the range
     file.seek(SeekFrom::Start(start_offset))?;
     let start_timestamp = read_timestamp(file, buffer)?;
