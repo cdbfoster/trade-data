@@ -115,11 +115,9 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
 
     fn retrieve(&self, timestamp: Timestamp, retrieval_direction: Option<RetrievalDirection>) -> io::Result<Retrieval> {
         let record_offset = {
-            let mut file = &mut *self.file.borrow_mut();
-            let mut file_buffer = BufReader::new(file);
             let mut read_buffer = vec![0u8; TIMESTAMP_SIZE as usize];
 
-            binary_search_for_timestamp::<T, BufReader<&mut File>>(&mut file_buffer, &mut read_buffer, retrieval_direction, timestamp, 0, self.end_offset)?
+            binary_search_for_timestamp::<T, File>(&mut *self.file.borrow_mut(), &mut read_buffer, retrieval_direction, timestamp, 0, self.end_offset)?
         };
 
         self.file.borrow_mut().seek(SeekFrom::Start(record_offset))?;
