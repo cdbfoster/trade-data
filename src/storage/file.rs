@@ -340,6 +340,38 @@ mod tests {
     }
 
     #[test]
+    fn test_file_storage_retrieval_direction() {
+        let _setup_file = SetupFile::new("test_file_storage_retrieval_direction");
+
+        let mut fs = FileStorage::<i32>::new("test_file_storage_retrieval_direction").unwrap();
+
+        fs.store(10, Box::new(1)).unwrap();
+        fs.store(15, Box::new(1)).unwrap();
+        fs.store(20, Box::new(2)).unwrap();
+        fs.store(30, Box::new(3)).unwrap();
+
+        let retrieval = fs.retrieve(22, Some(RetrievalDirection::Forward)).unwrap();
+        assert_eq!(retrieval.as_single::<i32, FileStorage<i32>>(), Some(&(30, 3)));
+
+        let retrieval = fs.retrieve(17, Some(RetrievalDirection::Backward)).unwrap();
+        assert_eq!(retrieval.as_single::<i32, FileStorage<i32>>(), Some(&(15, 1)));
+    }
+
+    #[test]
+    fn test_file_storage_retrieve() {
+        let _setup_file = SetupFile::new("test_file_storage_retrieve");
+
+        let mut fs = FileStorage::<i32>::new("test_file_storage_retrieve").unwrap();
+
+        fs.store(1, Box::new(1)).unwrap();
+        fs.store(2, Box::new(2)).unwrap();
+        fs.store(3, Box::new(3)).unwrap();
+
+        let retrieval = fs.retrieve(2, None).unwrap();
+        assert_eq!(retrieval.as_single::<i32, FileStorage<i32>>(), Some(&(2, 2)));
+    }
+
+    #[test]
     fn test_file_storage_store() {
         let _setup_file = SetupFile::new("test_file_storage_store");
 
