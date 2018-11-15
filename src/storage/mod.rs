@@ -14,7 +14,7 @@
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
 pub use self::file::FileStorage;
-pub use self::storage::{Retrieval, RetrievalDirection, RetrievalOptions, Storable, Storage};
+pub use self::storage::{GapFillMethod, PoolingMethod, Retrieval, RetrievalDirection, RetrievalOptions, Storable, Storage};
 
 mod file;
 mod storage;

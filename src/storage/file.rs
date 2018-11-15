@@ -21,7 +21,7 @@ use std::ops::Range;
 use std::str::{self, FromStr};
 
 use {Data, Timestamp};
-use storage::{Retrieval, RetrievalDirection, RetrievalOptions, Storable, Storage};
+use storage::{GapFillMethod, PoolingMethod, Retrieval, RetrievalDirection, RetrievalOptions, Storable, Storage};
 
 // The number of bytes a timestamp occupies in the file
 const TIMESTAMP_SIZE: u64 = 13;
@@ -115,6 +115,7 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
 
     fn retrieve(&self, timestamp: Timestamp, retrieval_direction: Option<RetrievalDirection>) -> io::Result<Retrieval> {
         let record_offset = {
+            // Scratch buffer into which we'll read new timestamps for parsing
             let mut read_buffer = vec![0u8; TIMESTAMP_SIZE as usize];
 
             binary_search_for_timestamp::<T, File>(&mut *self.file.borrow_mut(), &mut read_buffer, retrieval_direction, timestamp, 0, self.end_offset)?
@@ -122,12 +123,31 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
 
         self.file.borrow_mut().seek(SeekFrom::Start(record_offset))?;
         Ok(Retrieval::new(Box::new(
-            read_record::<T, File>(&mut self.file.borrow_mut(), &mut vec![0u8; PADDING as usize + T::size()])?
+            read_record::<T, File>(&mut self.file.borrow_mut(), &mut vec![0u8; self.item_size])?
         )))
     }
 
     fn retrieve_all(&self, retrieval_options: RetrievalOptions) -> io::Result<Retrieval> {
-        Ok(Retrieval::new(Box::new(Vec::<(Timestamp, T)>::new())))
+        // Reset the file to the beginning
+        self.file.borrow_mut().seek(SeekFrom::Start(0))?;
+
+        // Buffer the file to reduce the number of disk reads
+        let file = &mut *self.file.borrow_mut();
+        let mut file_buffer = BufReader::new(file);
+
+        // Scratch buffer into which we'll read new records for parsing
+        let mut read_buffer = vec![0u8; self.item_size];
+
+        // Gather all buckets between the beginning and end of the file
+        let values = gather_buckets::<T, BufReader<&mut File>>(
+            &mut file_buffer,
+            &mut read_buffer,
+            retrieval_options,
+            0,
+            self.end_offset,
+        )?;
+
+        Ok(Retrieval::new(Box::new(values)))
     }
 
     fn retrieve_from(&self, timestamp: Timestamp, retrieval_options: RetrievalOptions) -> io::Result<Retrieval> {
@@ -229,6 +249,84 @@ fn binary_search_for_timestamp<T: Storable<FileStorage<T>>, F: Read + Seek>(
     bisect_and_descend::<T, F>(file, buffer, retrieval_direction, timestamp, start_offset, end_offset)
 }
 
+fn gather_buckets<T: Storable<FileStorage<T>>, F: Read>(
+    file: &mut F,
+    buffer: &mut [u8],
+    retrieval_options: RetrievalOptions,
+    start_offset: u64,
+    end_offset: u64,
+) -> io::Result<Vec<(Timestamp, T)>> {
+    let mut values: Vec<(Timestamp, T)> = Vec::new();
+
+    let record_count = (end_offset - start_offset) / (PADDING + T::size() as u64) + 1;
+
+    struct Bucket<T> {
+        pub records: Vec<(Timestamp, T)>,
+        pub start: Timestamp,
+        pub end: Timestamp,
+    }
+
+    // Start off the first bucket with the first record
+    let mut bucket = {
+        let first_record = read_record::<T, F>(file, buffer)?;
+        let start = first_record.0;
+        let end = start + retrieval_options.interval;
+
+        Bucket {
+            records: vec![first_record],
+            start: start,
+            end: end,
+        }
+    };
+
+    // Add the final bucket value onto the list, depending on the type of pooling
+    fn conclude_bucket<T: Storable<FileStorage<T>>>(bucket: &Bucket<T>, values: &mut Vec<(Timestamp, T)>, retrieval_options: RetrievalOptions) {
+        values.push((bucket.start, match retrieval_options.pooling_method {
+            PoolingMethod::End => bucket.records.last().unwrap().1,
+            PoolingMethod::High => bucket.records.iter().max_by_key(|r| r.1).unwrap().1,
+            PoolingMethod::Low => bucket.records.iter().min_by_key(|r| r.1).unwrap().1,
+            PoolingMethod::Mean => T::mean(&bucket.records.iter().map(|r| r.1).collect::<Vec<T>>()),
+            PoolingMethod::Start => bucket.records.first().unwrap().1,
+            PoolingMethod::Sum => T::sum(&bucket.records.iter().map(|r| r.1).collect::<Vec<T>>()),
+        }));
+    }
+
+    // For the rest of the records
+    for _ in 1..record_count {
+        let record = read_record::<T, F>(file, buffer)?;
+
+        // If the record we just read doesn't fit in this bucket,
+        if record.0 >= bucket.end {
+            // end the current bucket and start new ones until the record fits.
+            conclude_bucket(&bucket, &mut values, retrieval_options);
+
+            bucket.records.clear();
+            bucket.start = bucket.end;
+            bucket.end += retrieval_options.interval;
+
+            while bucket.end < record.0 {
+                bucket.start = bucket.end;
+                bucket.end += retrieval_options.interval;
+
+                if let Some(gap_fill_method) = retrieval_options.gap_fill_method {
+                    let value = match gap_fill_method {
+                        GapFillMethod::Default => T::default(),
+                        GapFillMethod::Previous => values.last().unwrap().1,
+                    };
+
+                    values.push((bucket.start, value));
+                }
+            }
+        }
+
+        bucket.records.push(record);
+    }
+
+    conclude_bucket(&bucket, &mut values, retrieval_options);
+
+    Ok(values)
+}
+
 fn read_record<T: Storable<FileStorage<T>>, F: Read>(file: &mut F, buffer: &mut [u8]) -> io::Result<(Timestamp, T)> {
     debug_assert_eq!(buffer.len(), PADDING as usize + T::size(), "read_record was passed a buffer of the wrong size!");
 
@@ -314,6 +412,14 @@ mod tests {
 
             Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data!"))
         }
+
+        fn mean(values: &[i32]) -> i32 {
+            (values.iter().sum::<i32>() as f32 / values.len() as f32) as i32
+        }
+
+        fn sum(values: &[i32]) -> i32 {
+            values.iter().sum()
+        }
     }
 
     #[test]
@@ -373,6 +479,21 @@ mod tests {
 
         let retrieval = fs.retrieve(2, None).unwrap();
         assert_eq!(retrieval.as_single::<i32, FileStorage<i32>>(), Some(&(2, 2)));
+    }
+
+    #[test]
+    fn test_file_storage_retrieve_all() {
+        let _setup_file = SetupFile::new("test_file_storage_retrieve_all");
+
+        let mut fs = FileStorage::<i32>::new("test_file_storage_retrieve_all").unwrap();
+
+        fs.store(1, Box::new(1)).unwrap();
+        fs.store(2, Box::new(2)).unwrap();
+        fs.store(3, Box::new(3)).unwrap();
+
+        let retrieval_options = RetrievalOptions { interval: 1, ..RetrievalOptions::default() };
+        let retrieval = fs.retrieve_all(retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(1, 1), (2, 2), (3, 3)]));
     }
 
     #[test]

@@ -22,17 +22,14 @@ use {Data, Interval, Timestamp};
 #[derive(Clone, Copy)]
 pub enum GapFillMethod {
     Default,
-    Interpolate,
-    Next,
     Previous,
 }
 
 /// The value to return for each bucket
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum PoolingMethod {
     End,
     High,
-    Last,
     Low,
     Mean,
     Start,
@@ -72,15 +69,15 @@ pub struct RetrievalOptions {
     /// Which value to return for each bucket
     pub pooling_method: PoolingMethod,
     /// Whether and how to fill gaps
-    pub fill_gaps: Option<GapFillMethod>,
+    pub gap_fill_method: Option<GapFillMethod>,
 }
 
 impl Default for RetrievalOptions {
     fn default() -> Self {
         Self {
             interval: 10_000,
-            pooling_method: PoolingMethod::Last,
-            fill_gaps: Some(GapFillMethod::Previous),
+            pooling_method: PoolingMethod::End,
+            gap_fill_method: Some(GapFillMethod::Previous),
         }
     }
 }
@@ -97,8 +94,10 @@ pub trait Storage {
     fn len(&self) -> usize;
 }
 
-pub trait Storable<T: Storage>: 'static + Copy + Default {
+pub trait Storable<T: Storage>: 'static + Copy + Default + Ord {
     fn size() -> usize;
     fn into_bytes(self) -> Vec<u8>;
     fn from_bytes(buffer: &[u8]) -> io::Result<Self> where Self: Sized;
+    fn mean(values: &[Self]) -> Self where Self: Sized;
+    fn sum(value: &[Self]) -> Self where Self: Sized;
 }
