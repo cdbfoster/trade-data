@@ -181,7 +181,43 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
     }
 
     fn retrieve_to(&self, timestamp: Timestamp, retrieval_options: RetrievalOptions) -> io::Result<Retrieval> {
-        Ok(Retrieval::new(Box::new(Vec::<(Timestamp, T)>::new())))
+        let to_offset = {
+            // Scratch buffer into which we'll read new timestamps for parsing
+            let mut read_buffer = vec![0u8; TIMESTAMP_SIZE as usize];
+
+            let to_offset = binary_search_for_timestamp::<T, File>(&mut *self.file.borrow_mut(), &mut read_buffer, Some(RetrievalDirection::Backward), timestamp, 0, self.end_offset)?;
+
+            self.file.borrow_mut().seek(SeekFrom::Start(to_offset))?;
+            let to_timestamp = read_timestamp::<File>(&mut *self.file.borrow_mut(), &mut read_buffer)?;
+
+            if to_timestamp != timestamp {
+                to_offset
+            } else if to_offset > 0 {
+                to_offset - self.item_size as u64
+            } else {
+                return Ok(Retrieval::new(Box::new(Vec::<(Timestamp, T)>::new())));
+            }
+        };
+
+        self.file.borrow_mut().seek(SeekFrom::Start(0))?;
+
+        // Buffer the file to reduce the number of disk reads
+        let file = &mut *self.file.borrow_mut();
+        let mut file_buffer = BufReader::new(file);
+
+        // Scratch buffer into which we'll read new records for parsing
+        let mut read_buffer = vec![0u8; self.item_size];
+
+        // Gather all buckets between the beginning and end of the file
+        let values = gather_buckets::<T, BufReader<&mut File>>(
+            &mut file_buffer,
+            &mut read_buffer,
+            retrieval_options,
+            0,
+            to_offset,
+        )?;
+
+        Ok(Retrieval::new(Box::new(values)))
     }
 
     fn retrieve_range(&self, range: Range<Timestamp>, retrieval_options: RetrievalOptions) -> io::Result<Retrieval> {
@@ -536,6 +572,41 @@ mod tests {
         let retrieval_options = RetrievalOptions { interval: 10, ..RetrievalOptions::default() };
         let retrieval = fs.retrieve_from(17, retrieval_options).unwrap();
         assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(20, 2), (30, 3), (40, 4)]));
+    }
+
+    #[test]
+    fn test_file_storage_retrieve_to() {
+        let _setup_file = SetupFile::new("test_file_storage_retrieve_to");
+
+        let mut fs = FileStorage::<i32>::new("test_file_storage_retrieve_to").unwrap();
+
+        fs.store(10, Box::new(1)).unwrap();
+        fs.store(20, Box::new(2)).unwrap();
+        fs.store(30, Box::new(3)).unwrap();
+        fs.store(40, Box::new(4)).unwrap();
+
+        let retrieval_options = RetrievalOptions { interval: 10, ..RetrievalOptions::default() };
+        let retrieval = fs.retrieve_to(33, retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (20, 2), (30, 3)]));
+    }
+
+    #[test]
+    fn test_file_storage_retrieve_to_is_exclusive() {
+        let _setup_file = SetupFile::new("test_file_storage_retrieve_to");
+
+        let mut fs = FileStorage::<i32>::new("test_file_storage_retrieve_to").unwrap();
+
+        fs.store(10, Box::new(1)).unwrap();
+        fs.store(20, Box::new(2)).unwrap();
+        fs.store(30, Box::new(3)).unwrap();
+        fs.store(40, Box::new(4)).unwrap();
+
+        let retrieval_options = RetrievalOptions { interval: 10, ..RetrievalOptions::default() };
+        let retrieval = fs.retrieve_to(30, retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (20, 2)]));
+
+        let retrieval = fs.retrieve_to(10, retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![]));
     }
 
     #[test]
