@@ -392,15 +392,22 @@ fn gather_buckets<T: Storable<FileStorage<T>>, F: Read>(
 
     // Add the final bucket value onto the list, depending on the type of pooling
     fn conclude_bucket<T: Storable<FileStorage<T>>>(bucket: &Bucket<T>, values: &mut Vec<(Timestamp, T)>, retrieval_options: RetrievalOptions) {
+        let last_value = values.last().map(|v| v.1);
         values.push((bucket.start, match retrieval_options.pooling_method {
             PoolingMethod::End => bucket.records.last().unwrap().1,
             PoolingMethod::High => bucket.records.iter().max_by_key(|r| r.1).unwrap().1,
             PoolingMethod::Low => bucket.records.iter().min_by_key(|r| r.1).unwrap().1,
             PoolingMethod::Mean => T::mean(&bucket.records.iter().map(|r| r.1).collect::<Vec<T>>()),
-            PoolingMethod::Start => bucket.records.first().unwrap().1,
+            PoolingMethod::Start => if bucket.records.first().unwrap().0 == bucket.start || last_value.is_none() {
+                bucket.records.first().unwrap().1
+            } else {
+                last_value.unwrap()
+            },
             PoolingMethod::Sum => T::sum(&bucket.records.iter().map(|r| r.1).collect::<Vec<T>>()),
         }));
     }
+
+    let mut last_record = *bucket.records.first().unwrap();
 
     // For the rest of the records
     for _ in 1..record_count {
@@ -415,21 +422,22 @@ fn gather_buckets<T: Storable<FileStorage<T>>, F: Read>(
             bucket.start = bucket.end;
             bucket.end += retrieval_options.interval;
 
-            while bucket.end < record.0 {
-                bucket.start = bucket.end;
-                bucket.end += retrieval_options.interval;
-
+            while bucket.end <= record.0 {
                 if let Some(gap_fill_method) = retrieval_options.gap_fill_method {
                     let value = match gap_fill_method {
                         GapFillMethod::Default => T::default(),
-                        GapFillMethod::Previous => values.last().unwrap().1,
+                        GapFillMethod::Previous => last_record.1,
                     };
 
                     values.push((bucket.start, value));
                 }
+
+                bucket.start = bucket.end;
+                bucket.end += retrieval_options.interval;
             }
         }
 
+        last_record = record;
         bucket.records.push(record);
     }
 
@@ -543,6 +551,27 @@ mod tests {
         if fs.store(1, Box::new(2)).is_ok() || fs.store(2, Box::new(2)).is_ok() {
             panic!("Store should have failed here.");
         }
+    }
+
+    #[test]
+    fn test_file_storage_gap_fill_method() {
+        let _setup_file = SetupFile::new("test_file_storage_gap_fill_method");
+
+        let mut fs = FileStorage::<i32>::new("test_file_storage_gap_fill_method").unwrap();
+
+        fs.store(10, Box::new(1)).unwrap();
+        fs.store(14, Box::new(2)).unwrap();
+        fs.store(15, Box::new(3)).unwrap();
+        fs.store(20, Box::new(4)).unwrap();
+        fs.store(26, Box::new(5)).unwrap();
+
+        let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Start, gap_fill_method: Some(GapFillMethod::Previous) };
+        let retrieval = fs.retrieve_all(retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (13, 1), (16, 3), (19, 3), (22, 4), (25, 4)]));
+
+        let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Start, gap_fill_method: Some(GapFillMethod::Default) };
+        let retrieval = fs.retrieve_all(retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (13, 1), (16, 3), (19, 3), (22, 4), (25, 5)]));
     }
 
     #[test]
