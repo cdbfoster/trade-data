@@ -391,17 +391,16 @@ fn gather_buckets<T: Storable<FileStorage<T>>, F: Read>(
     };
 
     // Add the final bucket value onto the list, depending on the type of pooling
-    fn conclude_bucket<T: Storable<FileStorage<T>>>(bucket: &Bucket<T>, values: &mut Vec<(Timestamp, T)>, retrieval_options: RetrievalOptions) {
-        let last_value = values.last().map(|v| v.1);
+    fn conclude_bucket<T: Storable<FileStorage<T>>>(bucket: &Bucket<T>, values: &mut Vec<(Timestamp, T)>, last_record: (Timestamp, T), retrieval_options: RetrievalOptions) {
         values.push((bucket.start, match retrieval_options.pooling_method {
             PoolingMethod::End => bucket.records.last().unwrap().1,
             PoolingMethod::High => bucket.records.iter().max_by_key(|r| r.1).unwrap().1,
             PoolingMethod::Low => bucket.records.iter().min_by_key(|r| r.1).unwrap().1,
             PoolingMethod::Mean => T::mean(&bucket.records.iter().map(|r| r.1).collect::<Vec<T>>()),
-            PoolingMethod::Start => if bucket.records.first().unwrap().0 == bucket.start || last_value.is_none() {
+            PoolingMethod::Start => if bucket.records.first().unwrap().0 == bucket.start || retrieval_options.gap_fill_method == Some(GapFillMethod::Default) {
                 bucket.records.first().unwrap().1
             } else {
-                last_value.unwrap()
+                last_record.1
             },
             PoolingMethod::Sum => T::sum(&bucket.records.iter().map(|r| r.1).collect::<Vec<T>>()),
         }));
@@ -416,7 +415,9 @@ fn gather_buckets<T: Storable<FileStorage<T>>, F: Read>(
         // If the record we just read doesn't fit in this bucket,
         if record.0 >= bucket.end {
             // end the current bucket and start new ones until the record fits.
-            conclude_bucket(&bucket, &mut values, retrieval_options);
+            conclude_bucket(&bucket, &mut values, last_record, retrieval_options);
+
+            last_record = *bucket.records.last().unwrap();
 
             bucket.records.clear();
             bucket.start = bucket.end;
@@ -437,11 +438,10 @@ fn gather_buckets<T: Storable<FileStorage<T>>, F: Read>(
             }
         }
 
-        last_record = record;
         bucket.records.push(record);
     }
 
-    conclude_bucket(&bucket, &mut values, retrieval_options);
+    conclude_bucket(&bucket, &mut values, last_record, retrieval_options);
 
     Ok(values)
 }
@@ -571,7 +571,11 @@ mod tests {
 
         let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Start, gap_fill_method: Some(GapFillMethod::Default) };
         let retrieval = fs.retrieve_all(retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (13, 1), (16, 3), (19, 3), (22, 4), (25, 5)]));
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (13, 2), (16, 0), (19, 4), (22, 0), (25, 5)]));
+
+        let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Start, gap_fill_method: None };
+        let retrieval = fs.retrieve_all(retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (13, 1), (19, 3), (25, 4)]));
     }
 
     #[test]

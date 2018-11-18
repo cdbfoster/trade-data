@@ -19,9 +19,11 @@ use std::ops::Range;
 use {Data, Interval, Timestamp};
 
 /// The value to return during gaps in the record
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum GapFillMethod {
+    /// Buckets with no records will receive the data type's default value
     Default,
+    /// Buckets with no records will receive the value of the last bucket
     Previous,
 }
 
@@ -32,6 +34,8 @@ pub enum PoolingMethod {
     High,
     Low,
     Mean,
+    /// When gap_fill_method is Some(Default), the bucket value is the first record in the bucket.
+    /// Otherwise, the bucket value is the most recent record upon bucket start.
     Start,
     Sum,
 }
