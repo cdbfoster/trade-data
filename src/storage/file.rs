@@ -674,6 +674,9 @@ mod tests {
         let retrieval_options = RetrievalOptions { interval: 10, ..RetrievalOptions::default() };
         let retrieval = fs.retrieve_from(17, retrieval_options).unwrap();
         assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(17, 2), (27, 3), (37, 4)]));
+
+        let retrieval = fs.retrieve_from(7, retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (20, 2), (30, 3), (40, 4)]));
     }
 
     #[test]
@@ -693,6 +696,9 @@ mod tests {
 
         let retrieval = fs.retrieve_range(31..33, retrieval_options).unwrap();
         assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![]));
+
+        let retrieval = fs.retrieve_range(7..43, retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (20, 2), (30, 3), (40, 4)]));
     }
 
     #[test]
