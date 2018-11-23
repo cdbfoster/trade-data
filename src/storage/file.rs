@@ -55,7 +55,7 @@ impl<T> FileStorage<T> where T: Storable<FileStorage<T>> {
         let items = if end as usize % item_size == 0 {
             end as usize / item_size
         } else {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "FileStorage file is an invalid size!"));
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "FileStorage file is an invalid size"));
         };
 
         // If the file is bigger than a single element,
@@ -90,7 +90,7 @@ impl<T> FileStorage<T> where T: Storable<FileStorage<T>> {
 impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
     fn store(&mut self, timestamp: Timestamp, data: Box<Data>) -> io::Result<()> {
         if self.items > 0 && timestamp <= self.last_time {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Passed timestamp was equal to or before the last recorded timestamp!"));
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Passed timestamp was equal to or before the last recorded timestamp"));
         }
 
         if let Some(&data) = data.downcast_ref::<T>() {
@@ -109,7 +109,7 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
 
             Ok(())
         } else {
-            Err(io::Error::new(io::ErrorKind::InvalidInput, "FileStorage was passed the wrong kind of data!"))
+            Err(io::Error::new(io::ErrorKind::InvalidInput, "FileStorage was passed the wrong kind of data"))
         }
     }
 
@@ -447,7 +447,7 @@ fn gather_buckets<T: Storable<FileStorage<T>>, F: Read>(
 }
 
 fn read_record<T: Storable<FileStorage<T>>, F: Read>(file: &mut F, buffer: &mut [u8]) -> io::Result<(Timestamp, T)> {
-    debug_assert_eq!(buffer.len(), PADDING as usize + T::size(), "read_record was passed a buffer of the wrong size!");
+    debug_assert_eq!(buffer.len(), PADDING as usize + T::size(), "read_record was passed a buffer of the wrong size");
 
     file.read_exact(buffer)?;
 
@@ -460,19 +460,19 @@ fn read_record<T: Storable<FileStorage<T>>, F: Read>(file: &mut F, buffer: &mut 
             T::from_bytes(parts.next().unwrap().as_bytes())?,    // The second chunk is the data
         ))
     } else {
-        Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data!"))
+        Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data"))
     }
 }
 
 fn read_timestamp<F: Read>(file: &mut F, buffer: &mut [u8]) -> io::Result<Timestamp> {
-    debug_assert_eq!(buffer.len(), TIMESTAMP_SIZE as usize, "read_timestamp was passed a buffer of the wrong size!");
+    debug_assert_eq!(buffer.len(), TIMESTAMP_SIZE as usize, "read_timestamp was passed a buffer of the wrong size");
 
     file.read_exact(buffer)?;
 
     if let Ok(str_buffer) = str::from_utf8(buffer) {
         Ok(Timestamp::from_str(str_buffer).unwrap())
     } else {
-        Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data!"))
+        Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data"))
     }
 }
 
@@ -529,7 +529,7 @@ mod tests {
                 }
             }
 
-            Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data!"))
+            Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data"))
         }
 
         fn mean(values: &[i32]) -> i32 {
