@@ -599,6 +599,21 @@ mod tests {
     }
 
     #[test]
+    fn test_file_storage_len() {
+        let _setup_file = SetupFile::new("test_file_storage_len");
+
+        let mut fs = FileStorage::<i32>::new("test_file_storage_len").unwrap();
+
+        fs.store(10, Box::new(1)).unwrap();
+        fs.store(14, Box::new(2)).unwrap();
+        fs.store(15, Box::new(3)).unwrap();
+        fs.store(20, Box::new(4)).unwrap();
+        fs.store(26, Box::new(5)).unwrap();
+
+        assert_eq!(fs.len(), 5);
+    }
+
+    #[test]
     fn test_file_storage_pooling_method() {
         let _setup_file = SetupFile::new("test_file_storage_pooling_method");
 
