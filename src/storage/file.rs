@@ -587,15 +587,15 @@ mod tests {
 
         let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Start, gap_fill_method: Some(GapFillMethod::Previous) };
         let retrieval = fs.retrieve_all(retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (13, 1), (16, 3), (19, 3), (22, 4), (25, 4)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(10, 1), (13, 1), (16, 3), (19, 3), (22, 4), (25, 4)]));
 
         let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Start, gap_fill_method: Some(GapFillMethod::Default) };
         let retrieval = fs.retrieve_all(retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (13, 2), (16, 0), (19, 4), (22, 0), (25, 5)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(10, 1), (13, 2), (16, 0), (19, 4), (22, 0), (25, 5)]));
 
         let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Start, gap_fill_method: None };
         let retrieval = fs.retrieve_all(retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (13, 1), (19, 3), (25, 4)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(10, 1), (13, 1), (19, 3), (25, 4)]));
     }
 
     #[test]
@@ -629,27 +629,27 @@ mod tests {
 
         let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::End, gap_fill_method: Some(GapFillMethod::Previous) };
         let retrieval = fs.retrieve_from(12, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(12, 2), (15, 3), (18, 4), (21, 6), (24, 7)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(12, 2), (15, 3), (18, 4), (21, 6), (24, 7)]));
 
         let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::High, gap_fill_method: Some(GapFillMethod::Previous) };
         let retrieval = fs.retrieve_from(12, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(12, 2), (15, 3), (18, 5), (21, 6), (24, 7)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(12, 2), (15, 3), (18, 5), (21, 6), (24, 7)]));
 
         let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Low, gap_fill_method: Some(GapFillMethod::Previous) };
         let retrieval = fs.retrieve_from(12, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(12, 2), (15, 3), (18, 4), (21, 6), (24, 7)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(12, 2), (15, 3), (18, 4), (21, 6), (24, 7)]));
 
         let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Mean, gap_fill_method: Some(GapFillMethod::Previous) };
         let retrieval = fs.retrieve_from(12, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(12, 2), (15, 3), (18, 4), (21, 6), (24, 7)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(12, 2), (15, 3), (18, 4), (21, 6), (24, 7)]));
 
         let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Start, gap_fill_method: Some(GapFillMethod::Previous) };
         let retrieval = fs.retrieve_from(12, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(12, 1), (15, 3), (18, 3), (21, 6), (24, 6)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(12, 1), (15, 3), (18, 3), (21, 6), (24, 6)]));
 
         let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Sum, gap_fill_method: Some(GapFillMethod::Previous) };
         let retrieval = fs.retrieve_from(12, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(12, 2), (15, 3), (18, 9), (21, 6), (24, 7)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(12, 2), (15, 3), (18, 9), (21, 6), (24, 7)]));
     }
 
     #[test]
@@ -679,10 +679,10 @@ mod tests {
         fs.store(30, Box::new(3)).unwrap();
 
         let retrieval = fs.retrieve(22, Some(RetrievalDirection::Forward)).unwrap();
-        assert_eq!(retrieval.as_single::<i32, FileStorage<i32>>(), Some(&(30, 3)));
+        assert_eq!(retrieval.as_single::<i32>(), Some(&(30, 3)));
 
         let retrieval = fs.retrieve(17, Some(RetrievalDirection::Backward)).unwrap();
-        assert_eq!(retrieval.as_single::<i32, FileStorage<i32>>(), Some(&(15, 1)));
+        assert_eq!(retrieval.as_single::<i32>(), Some(&(15, 1)));
     }
 
     #[test]
@@ -696,7 +696,7 @@ mod tests {
         fs.store(3, Box::new(3)).unwrap();
 
         let retrieval = fs.retrieve(2, None).unwrap();
-        assert_eq!(retrieval.as_single::<i32, FileStorage<i32>>(), Some(&(2, 2)));
+        assert_eq!(retrieval.as_single::<i32>(), Some(&(2, 2)));
     }
 
     #[test]
@@ -711,7 +711,7 @@ mod tests {
 
         let retrieval_options = RetrievalOptions { interval: 1, ..RetrievalOptions::default() };
         let retrieval = fs.retrieve_all(retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(1, 1), (2, 2), (3, 3)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(1, 1), (2, 2), (3, 3)]));
     }
 
     #[test]
@@ -727,10 +727,10 @@ mod tests {
 
         let retrieval_options = RetrievalOptions { interval: 10, ..RetrievalOptions::default() };
         let retrieval = fs.retrieve_from(17, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(17, 2), (27, 3), (37, 4)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(17, 2), (27, 3), (37, 4)]));
 
         let retrieval = fs.retrieve_from(7, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (20, 2), (30, 3), (40, 4)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(10, 1), (20, 2), (30, 3), (40, 4)]));
     }
 
     #[test]
@@ -746,13 +746,13 @@ mod tests {
 
         let retrieval_options = RetrievalOptions { interval: 10, ..RetrievalOptions::default() };
         let retrieval = fs.retrieve_range(10..33, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (20, 2), (30, 3)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(10, 1), (20, 2), (30, 3)]));
 
         let retrieval = fs.retrieve_range(31..33, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![]));
 
         let retrieval = fs.retrieve_range(7..43, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (20, 2), (30, 3), (40, 4)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(10, 1), (20, 2), (30, 3), (40, 4)]));
     }
 
     #[test]
@@ -768,10 +768,10 @@ mod tests {
 
         let retrieval_options = RetrievalOptions { interval: 10, ..RetrievalOptions::default() };
         let retrieval = fs.retrieve_range(10..30, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (20, 2)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(10, 1), (20, 2)]));
 
         let retrieval = fs.retrieve_range(30..30, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![]));
     }
 
     #[test]
@@ -787,7 +787,7 @@ mod tests {
 
         let retrieval_options = RetrievalOptions { interval: 10, ..RetrievalOptions::default() };
         let retrieval = fs.retrieve_to(33, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (20, 2), (30, 3)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(10, 1), (20, 2), (30, 3)]));
     }
 
     #[test]
@@ -803,10 +803,10 @@ mod tests {
 
         let retrieval_options = RetrievalOptions { interval: 10, ..RetrievalOptions::default() };
         let retrieval = fs.retrieve_to(30, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(10, 1), (20, 2)]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![(10, 1), (20, 2)]));
 
         let retrieval = fs.retrieve_to(10, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![]));
+        assert_eq!(retrieval.as_vec::<i32>(), Some(&vec![]));
     }
 
     #[test]

@@ -53,11 +53,11 @@ impl Retrieval {
         }
     }
 
-    pub fn as_single<T: Storable<U>, U: Storage>(&self) -> Option<&(Timestamp, T)> {
+    pub fn as_single<T: 'static>(&self) -> Option<&(Timestamp, T)> {
         self.data.downcast_ref::<(Timestamp, T)>()
     }
 
-    pub fn as_vec<T: Storable<U>, U: Storage>(&self) -> Option<&Vec<(Timestamp, T)>> {
+    pub fn as_vec<T: 'static>(&self) -> Option<&Vec<(Timestamp, T)>> {
         self.data.downcast_ref::<Vec<(Timestamp, T)>>()
     }
 }
