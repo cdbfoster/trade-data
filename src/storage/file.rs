@@ -599,6 +599,45 @@ mod tests {
     }
 
     #[test]
+    fn test_file_storage_pooling_method() {
+        let _setup_file = SetupFile::new("test_file_storage_pooling_method");
+
+        let mut fs = FileStorage::<i32>::new("test_file_storage_pooling_method").unwrap();
+
+        fs.store(10, Box::new(1)).unwrap();
+        fs.store(14, Box::new(2)).unwrap();
+        fs.store(15, Box::new(3)).unwrap();
+        fs.store(19, Box::new(5)).unwrap();
+        fs.store(20, Box::new(4)).unwrap();
+        fs.store(21, Box::new(6)).unwrap();
+        fs.store(26, Box::new(7)).unwrap();
+
+        let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::End, gap_fill_method: Some(GapFillMethod::Previous) };
+        let retrieval = fs.retrieve_from(12, retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(12, 2), (15, 3), (18, 4), (21, 6), (24, 7)]));
+
+        let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::High, gap_fill_method: Some(GapFillMethod::Previous) };
+        let retrieval = fs.retrieve_from(12, retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(12, 2), (15, 3), (18, 5), (21, 6), (24, 7)]));
+
+        let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Low, gap_fill_method: Some(GapFillMethod::Previous) };
+        let retrieval = fs.retrieve_from(12, retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(12, 2), (15, 3), (18, 4), (21, 6), (24, 7)]));
+
+        let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Mean, gap_fill_method: Some(GapFillMethod::Previous) };
+        let retrieval = fs.retrieve_from(12, retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(12, 2), (15, 3), (18, 4), (21, 6), (24, 7)]));
+
+        let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Start, gap_fill_method: Some(GapFillMethod::Previous) };
+        let retrieval = fs.retrieve_from(12, retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(12, 1), (15, 3), (18, 3), (21, 6), (24, 6)]));
+
+        let retrieval_options = RetrievalOptions { interval: 3, pooling_method: PoolingMethod::Sum, gap_fill_method: Some(GapFillMethod::Previous) };
+        let retrieval = fs.retrieve_from(12, retrieval_options).unwrap();
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(12, 2), (15, 3), (18, 9), (21, 6), (24, 7)]));
+    }
+
+    #[test]
     fn test_file_storage_reads_last_time() {
         let _setup_file = SetupFile::new("test_file_storage_reads_last_time");
 
