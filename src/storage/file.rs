@@ -14,6 +14,7 @@
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cell::RefCell;
+use std::cmp;
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
@@ -85,6 +86,44 @@ impl<T> FileStorage<T> where T: Storable<FileStorage<T>> {
             _phantom: PhantomData,
         })
     }
+
+    /// Finds the time and offset of the first record that occurs on or before the timestamp.
+    /// If the timestamp is before the first record, it returns the time and offset of the first record.
+    fn find_from(&self, timestamp: Timestamp) -> io::Result<(Timestamp, u64)> {
+        // Scratch buffer into which we'll read new timestamps for parsing
+        let mut read_buffer = vec![0u8; TIMESTAMP_SIZE as usize];
+
+        let from_offset = if timestamp >= self.first_time {
+            binary_search_for_timestamp::<T, File>(&mut *self.file.borrow_mut(), &mut read_buffer, Some(RetrievalDirection::Backward), timestamp, 0, self.end_offset)?
+        } else {
+            0
+        };
+
+        self.file.borrow_mut().seek(SeekFrom::Start(from_offset))?;
+        let from_timestamp = cmp::max(read_timestamp::<File>(&mut *self.file.borrow_mut(), &mut read_buffer)?, timestamp);
+
+        Ok((from_timestamp, from_offset))
+    }
+
+    /// Finds the offset of the first record that occurs before the timestamp.
+    fn find_to(&self, timestamp: Timestamp) -> io::Result<u64> {
+        // Scratch buffer into which we'll read new timestamps for parsing
+        let mut read_buffer = vec![0u8; TIMESTAMP_SIZE as usize];
+
+        let to_offset = binary_search_for_timestamp::<T, File>(&mut *self.file.borrow_mut(), &mut read_buffer, Some(RetrievalDirection::Backward), timestamp, 0, self.end_offset)?;
+
+        self.file.borrow_mut().seek(SeekFrom::Start(to_offset))?;
+        let to_timestamp = read_timestamp::<File>(&mut *self.file.borrow_mut(), &mut read_buffer)?;
+
+        // find_to is exclusive.  If the bounding timestamp is found exactly, exclude that record from the result.
+        Ok(if to_timestamp != timestamp {
+            to_offset
+        } else if to_offset > 0 {
+            to_offset - self.item_size as u64
+        } else {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "find_to timestamp was equal to the first record"));
+        })
+    }
 }
 
 impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
@@ -144,6 +183,7 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
             &mut file_buffer,
             &mut read_buffer,
             retrieval_options,
+            self.first_time,
             0,
             self.end_offset,
         )?;
@@ -152,13 +192,7 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
     }
 
     fn retrieve_from(&self, timestamp: Timestamp, retrieval_options: RetrievalOptions) -> io::Result<Retrieval> {
-        let from_offset = {
-            // Scratch buffer into which we'll read new timestamps for parsing
-            let mut read_buffer = vec![0u8; TIMESTAMP_SIZE as usize];
-
-            binary_search_for_timestamp::<T, File>(&mut *self.file.borrow_mut(), &mut read_buffer, Some(RetrievalDirection::Forward), timestamp, 0, self.end_offset)?
-        };
-
+        let (from_timestamp, from_offset) = self.find_from(timestamp)?;
         self.file.borrow_mut().seek(SeekFrom::Start(from_offset))?;
 
         // Buffer the file to reduce the number of disk reads
@@ -173,6 +207,7 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
             &mut file_buffer,
             &mut read_buffer,
             retrieval_options,
+            from_timestamp,
             from_offset,
             self.end_offset,
         )?;
@@ -181,23 +216,13 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
     }
 
     fn retrieve_to(&self, timestamp: Timestamp, retrieval_options: RetrievalOptions) -> io::Result<Retrieval> {
-        let to_offset = {
-            // Scratch buffer into which we'll read new timestamps for parsing
-            let mut read_buffer = vec![0u8; TIMESTAMP_SIZE as usize];
-
-            let to_offset = binary_search_for_timestamp::<T, File>(&mut *self.file.borrow_mut(), &mut read_buffer, Some(RetrievalDirection::Backward), timestamp, 0, self.end_offset)?;
-
-            self.file.borrow_mut().seek(SeekFrom::Start(to_offset))?;
-            let to_timestamp = read_timestamp::<File>(&mut *self.file.borrow_mut(), &mut read_buffer)?;
-
-            // retrieve_to is exclusive.  If the bounding timestamp is found exactly, exclude that record from the result.
-            if to_timestamp != timestamp {
-                to_offset
-            } else if to_offset > 0 {
-                to_offset - self.item_size as u64
+        let to_offset = match self.find_to(timestamp) {
+            Ok(offset) => offset,
+            Err(error) => return if error.kind() == io::ErrorKind::InvalidInput && format!("{}", error) == "find_to timestamp was equal to the first record" {
+                Ok(Retrieval::new(Box::new(Vec::<(Timestamp, T)>::new())))
             } else {
-                return Ok(Retrieval::new(Box::new(Vec::<(Timestamp, T)>::new())));
-            }
+                Err(error)
+            },
         };
 
         self.file.borrow_mut().seek(SeekFrom::Start(0))?;
@@ -214,6 +239,7 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
             &mut file_buffer,
             &mut read_buffer,
             retrieval_options,
+            self.first_time,
             0,
             to_offset,
         )?;
@@ -222,33 +248,20 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
     }
 
     fn retrieve_range(&self, range: Range<Timestamp>, retrieval_options: RetrievalOptions) -> io::Result<Retrieval> {
-        let from_offset = {
-            // Scratch buffer into which we'll read new timestamps for parsing
-            let mut read_buffer = vec![0u8; TIMESTAMP_SIZE as usize];
+        let (from_timestamp, from_offset) = self.find_from(range.start)?;
 
-            binary_search_for_timestamp::<T, File>(&mut *self.file.borrow_mut(), &mut read_buffer, Some(RetrievalDirection::Forward), range.start, 0, self.end_offset)?
-        };
-
-        let to_offset = {
-            // Scratch buffer into which we'll read new timestamps for parsing
-            let mut read_buffer = vec![0u8; TIMESTAMP_SIZE as usize];
-
-            let to_offset = binary_search_for_timestamp::<T, File>(&mut *self.file.borrow_mut(), &mut read_buffer, Some(RetrievalDirection::Backward), range.end, 0, self.end_offset)?;
-
-            self.file.borrow_mut().seek(SeekFrom::Start(to_offset))?;
-            let to_timestamp = read_timestamp::<File>(&mut *self.file.borrow_mut(), &mut read_buffer)?;
-
-            // The range is exclusive.  If the ending timestamp is found exactly, exclude that record from the result.
-            if to_timestamp != range.end {
-                to_offset
-            } else if to_offset > 0 {
-                to_offset - self.item_size as u64
+        let to_offset = match self.find_to(range.end) {
+            Ok(offset) => offset,
+            Err(error) => return if error.kind() == io::ErrorKind::InvalidInput && format!("{}", error) == "find_to timestamp was equal to the first record" {
+                Ok(Retrieval::new(Box::new(Vec::<(Timestamp, T)>::new())))
             } else {
-                return Ok(Retrieval::new(Box::new(Vec::<(Timestamp, T)>::new())));
-            }
+                Err(error)
+            },
         };
 
-        if from_offset > to_offset {
+        // Since the range is exclusive of the end, if the from and to offsets are the same record, there are no records to return.
+        // Also no records to return if the from is after the to, obviously.
+        if (to_offset as i64 - from_offset as i64) < self.item_size as i64 {
             return Ok(Retrieval::new(Box::new(Vec::<(Timestamp, T)>::new())));
         }
 
@@ -266,6 +279,7 @@ impl<T> Storage for FileStorage<T> where T: Storable<FileStorage<T>> {
             &mut file_buffer,
             &mut read_buffer,
             retrieval_options,
+            from_timestamp,
             from_offset,
             to_offset,
         )?;
@@ -364,6 +378,7 @@ fn gather_buckets<T: Storable<FileStorage<T>>, F: Read>(
     file: &mut F,
     buffer: &mut [u8],
     retrieval_options: RetrievalOptions,
+    start_time: Timestamp,
     start_offset: u64,
     end_offset: u64,
 ) -> io::Result<Vec<(Timestamp, T)>> {
@@ -377,36 +392,45 @@ fn gather_buckets<T: Storable<FileStorage<T>>, F: Read>(
         pub end: Timestamp,
     }
 
-    // Start off the first bucket with the first record
-    let mut bucket = {
-        let first_record = read_record::<T, F>(file, buffer)?;
-        let start = first_record.0;
-        let end = start + retrieval_options.interval;
+    let first_record = read_record::<T, F>(file, buffer)?;
 
-        Bucket {
-            records: vec![first_record],
-            start: start,
-            end: end,
-        }
+    // Start off the first bucket with the first record if it belongs there
+    let mut bucket = Bucket {
+        records: if first_record.0 == start_time {
+            vec![first_record]
+        } else {
+            Vec::new()
+        },
+        start: start_time,
+        end: start_time + retrieval_options.interval,
     };
 
     // Add the final bucket value onto the list, depending on the type of pooling
     fn conclude_bucket<T: Storable<FileStorage<T>>>(bucket: &Bucket<T>, values: &mut Vec<(Timestamp, T)>, last_record: (Timestamp, T), retrieval_options: RetrievalOptions) {
-        values.push((bucket.start, match retrieval_options.pooling_method {
-            PoolingMethod::End => bucket.records.last().unwrap().1,
-            PoolingMethod::High => bucket.records.iter().max_by_key(|r| r.1).unwrap().1,
-            PoolingMethod::Low => bucket.records.iter().min_by_key(|r| r.1).unwrap().1,
-            PoolingMethod::Mean => T::mean(&bucket.records.iter().map(|r| r.1).collect::<Vec<T>>()),
-            PoolingMethod::Start => if bucket.records.first().unwrap().0 == bucket.start || retrieval_options.gap_fill_method == Some(GapFillMethod::Default) {
-                bucket.records.first().unwrap().1
-            } else {
-                last_record.1
-            },
-            PoolingMethod::Sum => T::sum(&bucket.records.iter().map(|r| r.1).collect::<Vec<T>>()),
-        }));
+        if !bucket.records.is_empty() {
+            values.push((bucket.start, match retrieval_options.pooling_method {
+                PoolingMethod::End => bucket.records.last().unwrap().1,
+                PoolingMethod::High => bucket.records.iter().max_by_key(|r| r.1).unwrap().1,
+                PoolingMethod::Low => bucket.records.iter().min_by_key(|r| r.1).unwrap().1,
+                PoolingMethod::Mean => T::mean(&bucket.records.iter().map(|r| r.1).collect::<Vec<T>>()),
+                PoolingMethod::Start => if bucket.records.first().unwrap().0 == bucket.start || retrieval_options.gap_fill_method == Some(GapFillMethod::Default) {
+                    bucket.records.first().unwrap().1
+                } else {
+                    last_record.1
+                },
+                PoolingMethod::Sum => T::sum(&bucket.records.iter().map(|r| r.1).collect::<Vec<T>>()),
+            }));
+        } else if let Some(gap_fill_method) = retrieval_options.gap_fill_method {
+            let value = match gap_fill_method {
+                GapFillMethod::Default => T::default(),
+                GapFillMethod::Previous => last_record.1,
+            };
+
+            values.push((bucket.start, value));
+        }
     }
 
-    let mut last_record = *bucket.records.first().unwrap();
+    let mut last_record = first_record;
 
     // For the rest of the records
     for _ in 1..record_count {
@@ -417,21 +441,17 @@ fn gather_buckets<T: Storable<FileStorage<T>>, F: Read>(
             // end the current bucket and start new ones until the record fits.
             conclude_bucket(&bucket, &mut values, last_record, retrieval_options);
 
-            last_record = *bucket.records.last().unwrap();
+            if !bucket.records.is_empty() {
+                last_record = *bucket.records.last().unwrap();
 
-            bucket.records.clear();
+                bucket.records.clear();
+            }
+
             bucket.start = bucket.end;
             bucket.end += retrieval_options.interval;
 
             while bucket.end <= record.0 {
-                if let Some(gap_fill_method) = retrieval_options.gap_fill_method {
-                    let value = match gap_fill_method {
-                        GapFillMethod::Default => T::default(),
-                        GapFillMethod::Previous => last_record.1,
-                    };
-
-                    values.push((bucket.start, value));
-                }
+                conclude_bucket(&bucket, &mut values, last_record, retrieval_options);
 
                 bucket.start = bucket.end;
                 bucket.end += retrieval_options.interval;
@@ -653,7 +673,7 @@ mod tests {
 
         let retrieval_options = RetrievalOptions { interval: 10, ..RetrievalOptions::default() };
         let retrieval = fs.retrieve_from(17, retrieval_options).unwrap();
-        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(20, 2), (30, 3), (40, 4)]));
+        assert_eq!(retrieval.as_vec::<i32, FileStorage<i32>>(), Some(&vec![(17, 2), (27, 3), (37, 4)]));
     }
 
     #[test]
