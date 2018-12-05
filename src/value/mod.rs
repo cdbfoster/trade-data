@@ -13,16 +13,11 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::any::Any;
+pub use self::usd::Usd;
 
-pub type Data = dyn Any;
-pub type Interval = Timestamp;
-pub type Timestamp = u64;
+pub trait Value {
+    fn whole(&self) -> i64;
+    fn fractional(&self) -> i64;
+}
 
-pub use storage::Storage;
-pub use util::UnsafeSlice;
-
-pub mod storage;
-pub mod value;
-
-mod util;
+mod usd;

@@ -1,0 +1,78 @@
+// This file is part of trade-data.
+//
+// trade-data is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// trade-data is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
+
+use std::fmt;
+
+use value::Value;
+
+const MAJOR_DIGITS: usize = 6;
+const MINOR_DIGITS: usize = 2;
+
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Usd {
+    value: i64,
+}
+
+impl Usd {
+    pub fn new(value: i64) -> Self {
+        Self {
+            value: value,
+        }
+    }
+}
+
+impl Value for Usd {
+    fn whole(&self) -> i64 {
+        self.value / 100
+    }
+
+    fn fractional(&self) -> i64 {
+        self.value % 100
+    }
+}
+
+impl fmt::Display for Usd {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.pad(&format!("{}.{:0minor_digits$}", self.whole(), self.fractional(), minor_digits = MINOR_DIGITS))
+    }
+}
+
+mod storable;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_usd_whole() {
+        let value = Usd::new(12345);
+
+        assert_eq!(value.whole(), 123i64);
+    }
+
+    #[test]
+    fn test_usd_fractional() {
+        let value = Usd::new(12345);
+
+        assert_eq!(value.fractional(), 45i64);
+    }
+
+    #[test]
+    fn test_usd_display() {
+        let value = Usd::new(12345);
+
+        assert_eq!(&format!("{}", value), "123.45");
+    }
+}
