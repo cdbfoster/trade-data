@@ -59,7 +59,7 @@ impl Storable<FileStorage<Usd>> for Usd {
     }
 
     fn mean(values: &[Self]) -> Self {
-        Usd::new((values.iter().map(|v| v.value).sum::<i64>() as f32 / values.len() as f32) as i64)
+        Usd::new(values.iter().map(|v| v.value).sum::<i64>() / values.len() as i64)
     }
 
     fn sum(values: &[Self]) -> Self {

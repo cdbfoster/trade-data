@@ -35,11 +35,11 @@ impl Usd {
 
 impl Value for Usd {
     fn whole(&self) -> i64 {
-        self.value / 100
+        self.value / 10i64.pow(MINOR_DIGITS as u32)
     }
 
     fn fractional(&self) -> i64 {
-        self.value % 100
+        self.value % 10i64.pow(MINOR_DIGITS as u32)
     }
 }
 
