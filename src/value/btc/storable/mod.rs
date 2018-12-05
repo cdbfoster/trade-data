@@ -13,13 +13,4 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use self::btc::Btc;
-pub use self::usd::Usd;
-
-pub trait Value {
-    fn whole(&self) -> i64;
-    fn fractional(&self) -> i64;
-}
-
-mod btc;
-mod usd;
+mod file;
