@@ -13,14 +13,23 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use key_value_store::{KeyValueStore, Retrieval};
-pub use pooled_time_series::{Interval, GapFillMethod, Poolable, PooledTimeSeries, PoolingOptions};
-pub use time_series::{TimeSeries, Timestamp};
+use std::fs;
 
-pub mod storage;
-//pub mod value;
+pub struct SetupFile {
+    filename: &'static str,
+}
 
-mod key_value_store;
-mod pooled_time_series;
-mod time_series;
-mod util;
+impl SetupFile {
+    pub fn new(filename: &'static str) -> Self {
+        fs::remove_file(filename).ok();
+        Self {
+            filename: filename,
+        }
+    }
+}
+
+impl Drop for SetupFile {
+    fn drop(&mut self) {
+        fs::remove_file(self.filename).ok();
+    }
+}

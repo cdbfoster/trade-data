@@ -13,14 +13,25 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use key_value_store::{KeyValueStore, Retrieval};
-pub use pooled_time_series::{Interval, GapFillMethod, Poolable, PooledTimeSeries, PoolingOptions};
-pub use time_series::{TimeSeries, Timestamp};
+use std::io;
+use std::ops::Range;
 
-pub mod storage;
-//pub mod value;
+use key_value_store::Retrieval;
 
-mod key_value_store;
-mod pooled_time_series;
-mod time_series;
-mod util;
+pub type Timestamp = u64;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum RetrievalDirection {
+    Forward,
+    Backward,
+}
+
+pub trait TimeSeries {
+    fn retrieve_nearest(&self, timestamp: Timestamp, retrieval_direction: Option<RetrievalDirection>) -> io::Result<Retrieval>;
+    fn retrieve_all(&self) -> io::Result<Retrieval>;
+    fn retrieve_from(&self, timestamp: Timestamp) -> io::Result<Retrieval>;
+    fn retrieve_to(&self, timestamp: Timestamp) -> io::Result<Retrieval>;
+    fn retrieve_range(&self, range: Range<Timestamp>) -> io::Result<Retrieval>;
+}
+
+mod storage;

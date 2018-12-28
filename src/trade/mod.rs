@@ -13,14 +13,27 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use key_value_store::{KeyValueStore, Retrieval};
-pub use pooled_time_series::{Interval, GapFillMethod, Poolable, PooledTimeSeries, PoolingOptions};
-pub use time_series::{TimeSeries, Timestamp};
+use value::Value;
 
-pub mod storage;
-//pub mod value;
+pub enum OrderSide {
+    Ask,
+    Bid,
+}
 
-mod key_value_store;
-mod pooled_time_series;
-mod time_series;
-mod util;
+pub struct Trade<T, U> where T: Value, U: Value {
+    pub amount: T,
+    pub price: U,
+    pub side: OrderSide,
+}
+
+impl<T, U> Trade<T, U> where T: Value, U: Value {
+    pub fn new(amount: T, price: U, side: OrderSide) -> Self {
+        Self {
+            amount: amount,
+            price: price,
+            side: side,
+        }
+    }
+}
+
+mod storable;

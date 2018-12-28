@@ -13,6 +13,8 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
+pub use self::setup_file::SetupFile;
 pub use self::unsafe_slice::UnsafeSlice;
 
+mod setup_file;
 mod unsafe_slice;
