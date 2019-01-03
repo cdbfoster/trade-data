@@ -53,6 +53,16 @@ pub struct PoolingOptions {
     pub gap_fill: Option<GapFillMethod>,
 }
 
+impl Default for PoolingOptions {
+    fn default() -> Self {
+        Self {
+            interval: 0,
+            pooling: PoolingMethod::End,
+            gap_fill: None,
+        }
+    }
+}
+
 pub trait PooledTimeSeries {
     fn pool_all(&self, pooling_options: PoolingOptions) -> io::Result<Retrieval>;
     fn pool_from(&self, timestamp: Timestamp, pooling_options: PoolingOptions) -> io::Result<Retrieval>;
@@ -60,7 +70,22 @@ pub trait PooledTimeSeries {
     fn pool_range(&self, range: Range<Timestamp>, pooling_options: PoolingOptions) -> io::Result<Retrieval>;
 }
 
-pub trait Poolable: 'static + Default + Ord + Sized {
+pub trait Poolable: 'static + Copy + Default + Ord + Sized {
     fn mean(values: &[Self]) -> Self;
     fn sum(values: &[Self]) -> Self;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl Poolable for i32 {
+        fn mean(values: &[Self]) -> Self {
+            (values.iter().sum::<Self>() as f32 / values.len() as f32) as Self
+        }
+
+        fn sum(values: &[Self]) -> Self {
+            values.iter().sum()
+        }
+    }
 }

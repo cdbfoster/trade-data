@@ -21,7 +21,6 @@ use std::marker::PhantomData;
 use std::str::{self, FromStr};
 
 use key_value_store::{Data, KeyValueStore, Retrieval, Storable};
-use pooled_time_series::{GapFillMethod, Poolable, PooledTimeSeries, PoolingOptions};
 use time_series::{RetrievalDirection, TimeSeries, Timestamp};
 
 pub struct FileStorage<K, V> {
