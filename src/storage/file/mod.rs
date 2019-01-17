@@ -245,3 +245,4 @@ fn write_record<K, V, F>(file: &mut F, key: K, value: V) -> io::Result<()>  wher
 
 mod key_value_store;
 mod pooled_time_series;
+mod time_series;
