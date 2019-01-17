@@ -69,10 +69,10 @@ mod tests {
     use util::SetupFile;
 
     #[test]
-    fn test_file_storage_cannot_write_old_time() {
-        let _setup_file = SetupFile::new("test_file_storage_cannot_write_old_time");
+    fn test_cannot_write_old_time() {
+        let _setup_file = SetupFile::new("test_cannot_write_old_time");
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_cannot_write_old_time").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_cannot_write_old_time").unwrap();
 
         fs.store(Box::new(2 as Timestamp), Box::new(1 as i32)).unwrap();
         if fs.store(Box::new(1 as Timestamp), Box::new(2 as i32)).is_ok() || fs.store(Box::new(2 as Timestamp), Box::new(2 as i32)).is_ok() {
@@ -81,10 +81,10 @@ mod tests {
     }
 
     #[test]
-    fn test_file_storage_len() {
-        let _setup_file = SetupFile::new("test_file_storage_len");
+    fn test_len() {
+        let _setup_file = SetupFile::new("test_len");
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_len").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_len").unwrap();
 
         fs.store(Box::new(10 as Timestamp), Box::new(1 as i32)).unwrap();
         fs.store(Box::new(14 as Timestamp), Box::new(2 as i32)).unwrap();
@@ -96,28 +96,28 @@ mod tests {
     }
 
     #[test]
-    fn test_file_storage_reads_last_time() {
-        let _setup_file = SetupFile::new("test_file_storage_reads_last_time");
+    fn test_reads_last_time() {
+        let _setup_file = SetupFile::new("test_reads_last_time");
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_reads_last_time").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_reads_last_time").unwrap();
         fs.store(Box::new(1 as Timestamp), Box::new(1 as i32)).unwrap();
         fs.store(Box::new(2 as Timestamp), Box::new(2 as i32)).unwrap();
         mem::drop(fs);
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_reads_last_time").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_reads_last_time").unwrap();
         if fs.store(Box::new(2 as Timestamp), Box::new(3 as i32)).is_ok() {
             panic!("Store should have failed here.");
         }
     }
 
     //#[test]
-    //fn test_file_storage_retrieve() { }
+    //fn test_retrieve() { }
 
     #[test]
-    fn test_file_storage_store() {
-        let _setup_file = SetupFile::new("test_file_storage_store");
+    fn test_store() {
+        let _setup_file = SetupFile::new("test_store");
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_store").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_store").unwrap();
 
         fs.store(Box::new(1 as Timestamp), Box::new(1 as i32)).unwrap();
         fs.store(Box::new(2 as Timestamp), Box::new(2 as i32)).unwrap();
@@ -127,7 +127,7 @@ mod tests {
 
         // Read in the values we wrote and compare to what we expected
         let mut value = String::new();
-        File::open("test_file_storage_store").unwrap().read_to_string(&mut value).unwrap();
+        File::open("test_store").unwrap().read_to_string(&mut value).unwrap();
         assert_eq!(&value.into_bytes(), &String::from("0000000000001    1\n0000000000002    2\n0000000000003    3\n").into_bytes());
     }
 }

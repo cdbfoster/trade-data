@@ -252,10 +252,10 @@ mod tests {
     use util::SetupFile;
 
     #[test]
-    fn test_file_storage_gap_fill_method() {
-        let _setup_file = SetupFile::new("test_file_storage_gap_fill_method");
+    fn test_gap_fill_method() {
+        let _setup_file = SetupFile::new("test_gap_fill_method");
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_gap_fill_method").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_gap_fill_method").unwrap();
 
         fs.store(Box::new(10 as Timestamp), Box::new(1 as i32)).unwrap();
         fs.store(Box::new(14 as Timestamp), Box::new(2 as i32)).unwrap();
@@ -277,10 +277,10 @@ mod tests {
     }
 
     #[test]
-    fn test_file_storage_pool_all() {
-        let _setup_file = SetupFile::new("test_file_storage_pool_all");
+    fn test_pool_all() {
+        let _setup_file = SetupFile::new("test_pool_all");
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_pool_all").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_pool_all").unwrap();
 
         fs.store(Box::new(1 as Timestamp), Box::new(1 as i32)).unwrap();
         fs.store(Box::new(2 as Timestamp), Box::new(2 as i32)).unwrap();
@@ -292,10 +292,10 @@ mod tests {
     }
 
     #[test]
-    fn test_file_storage_pool_from() {
-        let _setup_file = SetupFile::new("test_file_storage_pool_from");
+    fn test_pool_from() {
+        let _setup_file = SetupFile::new("test_pool_from");
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_pool_from").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_pool_from").unwrap();
 
         fs.store(Box::new(10 as Timestamp), Box::new(1 as i32)).unwrap();
         fs.store(Box::new(20 as Timestamp), Box::new(2 as i32)).unwrap();
@@ -311,10 +311,10 @@ mod tests {
     }
 
     #[test]
-    fn test_file_storage_pooling_method() {
-        let _setup_file = SetupFile::new("test_file_storage_pooling_method");
+    fn test_pooling_method() {
+        let _setup_file = SetupFile::new("test_pooling_method");
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_pooling_method").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_pooling_method").unwrap();
 
         fs.store(Box::new(10 as Timestamp), Box::new(1 as i32)).unwrap();
         fs.store(Box::new(14 as Timestamp), Box::new(2 as i32)).unwrap();
@@ -350,10 +350,10 @@ mod tests {
     }
 
     #[test]
-    fn test_file_storage_pool_range() {
-        let _setup_file = SetupFile::new("test_file_storage_pool_range");
+    fn test_pool_range() {
+        let _setup_file = SetupFile::new("test_pool_range");
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_pool_range").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_pool_range").unwrap();
 
         fs.store(Box::new(10 as Timestamp), Box::new(1 as i32)).unwrap();
         fs.store(Box::new(20 as Timestamp), Box::new(2 as i32)).unwrap();
@@ -372,10 +372,10 @@ mod tests {
     }
 
     #[test]
-    fn test_file_storage_retrieve_range_is_exclusive() {
-        let _setup_file = SetupFile::new("test_file_storage_pool_range_is_exclusive");
+    fn test_retrieve_range_is_exclusive() {
+        let _setup_file = SetupFile::new("test_pool_range_is_exclusive");
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_pool_range_is_exclusive").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_pool_range_is_exclusive").unwrap();
 
         fs.store(Box::new(10 as Timestamp), Box::new(1 as i32)).unwrap();
         fs.store(Box::new(20 as Timestamp), Box::new(2 as i32)).unwrap();
@@ -391,10 +391,10 @@ mod tests {
     }
 
     #[test]
-    fn test_file_storage_pool_to() {
-        let _setup_file = SetupFile::new("test_file_storage_pool_to");
+    fn test_pool_to() {
+        let _setup_file = SetupFile::new("test_pool_to");
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_pool_to").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_pool_to").unwrap();
 
         fs.store(Box::new(10 as Timestamp), Box::new(1 as i32)).unwrap();
         fs.store(Box::new(20 as Timestamp), Box::new(2 as i32)).unwrap();
@@ -407,10 +407,10 @@ mod tests {
     }
 
     #[test]
-    fn test_file_storage_pool_to_is_exclusive() {
-        let _setup_file = SetupFile::new("test_file_storage_pool_to_is_exclusive");
+    fn test_pool_to_is_exclusive() {
+        let _setup_file = SetupFile::new("test_pool_to_is_exclusive");
 
-        let mut fs = FileStorage::<Timestamp, i32>::new("test_file_storage_pool_to_is_exclusive").unwrap();
+        let mut fs = FileStorage::<Timestamp, i32>::new("test_pool_to_is_exclusive").unwrap();
 
         fs.store(Box::new(10 as Timestamp), Box::new(1 as i32)).unwrap();
         fs.store(Box::new(20 as Timestamp), Box::new(2 as i32)).unwrap();
