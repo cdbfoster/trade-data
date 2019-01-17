@@ -245,10 +245,6 @@ fn gather_buckets<V, F>(
 mod tests {
     use super::*;
 
-    use std::fs::File;
-    use std::mem;
-
-    use time_series::Timestamp;
     use util::SetupFile;
 
     #[test]
