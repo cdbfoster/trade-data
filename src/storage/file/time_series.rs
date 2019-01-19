@@ -14,10 +14,10 @@
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fs::File;
-use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufReader, Seek, SeekFrom};
 use std::ops::Range;
 
-use key_value_store::{Data, KeyValueStore, Retrieval, Storable};
+use key_value_store::{Retrieval, Storable};
 use storage::file::{binary_search_for_key, FileStorage, read_record};
 use time_series::{RetrievalDirection, TimeSeries, Timestamp};
 
@@ -66,7 +66,7 @@ impl<V> TimeSeries for FileStorage<Timestamp, V> where V: Storable<FileStorage<T
         // Buffer the file to reduce the number of disk reads
         let file = &mut *self.file.borrow_mut();
         let mut file_buffer = BufReader::new(file);
-        file_buffer.seek(SeekFrom::Start(from_offset));
+        file_buffer.seek(SeekFrom::Start(from_offset))?;
 
         let from_item = from_offset as usize / self.item_size;
 
@@ -93,7 +93,7 @@ impl<V> TimeSeries for FileStorage<Timestamp, V> where V: Storable<FileStorage<T
         // Buffer the file to reduce the number of disk reads
         let file = &mut *self.file.borrow_mut();
         let mut file_buffer = BufReader::new(file);
-        file_buffer.seek(SeekFrom::Start(0));
+        file_buffer.seek(SeekFrom::Start(0))?;
 
         let to_item = to_offset as usize / self.item_size + 1;
 
@@ -130,7 +130,7 @@ impl<V> TimeSeries for FileStorage<Timestamp, V> where V: Storable<FileStorage<T
         // Buffer the file to reduce the number of disk reads
         let file = &mut *self.file.borrow_mut();
         let mut file_buffer = BufReader::new(file);
-        file_buffer.seek(SeekFrom::Start(from_offset));
+        file_buffer.seek(SeekFrom::Start(from_offset))?;
 
         let from_item = from_offset as usize / self.item_size;
         let to_item = to_offset as usize / self.item_size + 1;
@@ -150,6 +150,7 @@ impl<V> TimeSeries for FileStorage<Timestamp, V> where V: Storable<FileStorage<T
 mod tests {
     use super::*;
 
+    use key_value_store::KeyValueStore;
     use util::SetupFile;
 
     #[test]

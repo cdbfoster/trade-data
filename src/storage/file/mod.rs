@@ -16,12 +16,12 @@
 use std::cell::RefCell;
 use std::cmp;
 use std::fs::{File, OpenOptions};
-use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufWriter, Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
-use std::str::{self, FromStr};
+use std::str;
 
-use key_value_store::{Data, KeyValueStore, Retrieval, Storable};
-use time_series::{RetrievalDirection, TimeSeries, Timestamp};
+use key_value_store::Storable;
+use time_series::RetrievalDirection;
 
 pub struct FileStorage<K, V> {
     file: RefCell<File>,

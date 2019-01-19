@@ -14,13 +14,13 @@
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fs::File;
-use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
-use std::ops::{Add, Range};
+use std::io::{self, BufReader, Read, Seek, SeekFrom};
+use std::ops::Range;
 
-use key_value_store::{Data, KeyValueStore, Retrieval, Storable};
+use key_value_store::{Retrieval, Storable};
 use pooled_time_series::{GapFillMethod, Poolable, PooledTimeSeries, PoolingMethod, PoolingOptions};
 use storage::file::{FileStorage, read_record};
-use time_series::{RetrievalDirection, TimeSeries, Timestamp};
+use time_series::Timestamp;
 
 impl<V> PooledTimeSeries for FileStorage<Timestamp, V> where V: Storable<FileStorage<Timestamp, V>> + Poolable {
     fn pool_all(&self, pooling_options: PoolingOptions) -> io::Result<Retrieval> {
@@ -245,6 +245,7 @@ fn gather_buckets<V, F>(
 mod tests {
     use super::*;
 
+    use key_value_store::KeyValueStore;
     use util::SetupFile;
 
     #[test]

@@ -13,9 +13,9 @@
 // You should have received a copy of the GNU General Public License
 // along with trade-data.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
+use std::io::{self, Seek, SeekFrom};
 
-use key_value_store::{Data, KeyValueStore, Retrieval, Storable};
+use key_value_store::{Data, KeyValueStore, Storable};
 use storage::file::{FileStorage, write_record};
 
 impl<K, V> KeyValueStore for FileStorage<K, V> where K: Storable<FileStorage<K, V>> + Ord, V: Storable<FileStorage<K, V>> {
@@ -63,6 +63,7 @@ mod tests {
     use super::*;
 
     use std::fs::File;
+    use std::io::Read;
     use std::mem;
 
     use time_series::Timestamp;
