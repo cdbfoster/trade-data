@@ -17,7 +17,7 @@ use std::io;
 use std::ops::Range;
 
 use key_value_store::Retrieval;
-use time_series::Timestamp;
+use time_series::{TimeSeries, Timestamp};
 
 pub type Interval = Timestamp;
 
@@ -63,11 +63,14 @@ impl Default for PoolingOptions {
     }
 }
 
-pub trait PooledTimeSeries {
+pub trait PooledTimeSeries: TimeSeries {
     fn pool_all(&self, pooling_options: PoolingOptions) -> io::Result<Retrieval>;
     fn pool_from(&self, timestamp: Timestamp, pooling_options: PoolingOptions) -> io::Result<Retrieval>;
     fn pool_to(&self, timestamp: Timestamp, pooling_options: PoolingOptions) -> io::Result<Retrieval>;
     fn pool_range(&self, range: Range<Timestamp>, pooling_options: PoolingOptions) -> io::Result<Retrieval>;
+
+    fn as_time_series(&self) -> &dyn TimeSeries;
+    fn as_mut_time_series(&mut self) -> &mut dyn TimeSeries;
 }
 
 pub trait Poolable: 'static + Copy + Default + Ord + Sized {

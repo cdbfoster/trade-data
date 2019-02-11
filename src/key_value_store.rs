@@ -36,16 +36,32 @@ impl Retrieval {
     pub fn as_vec<K: 'static, V: 'static>(&self) -> Option<&Vec<(K, V)>> {
         self.data.downcast_ref::<Vec<(K, V)>>()
     }
+
+    pub fn into_single<K: 'static, V: 'static>(self) -> (K, V) {
+        if let Ok(cast) = self.data.downcast::<(K, V)>() {
+            *cast
+        } else {
+            panic!("into_single called on a Retrieval of the wrong type");
+        }
+    }
+
+    pub fn into_vec<K: 'static, V: 'static>(self) -> Vec<(K, V)> {
+        if let Ok(cast) = self.data.downcast::<Vec<(K, V)>>() {
+            *cast
+        } else {
+            panic!("into_vec called on a Retrieval of the wrong type");
+        }
+    }
 }
 
-pub trait KeyValueStore {
+pub trait KeyValueStore: Send {
     fn len(&self) -> usize;
 
     fn store(&mut self, key: Box<Data>, value: Box<Data>) -> io::Result<()>;
     //fn retrieve(&self, key: Box<Data>) -> io::Result<Retrieval>;
 }
 
-pub trait Storable<T: KeyValueStore>: 'static + Copy + Default + Sized {
+pub trait Storable<T: KeyValueStore>: 'static + Copy + Default + Sized + Send {
     fn size() -> usize;
     fn into_bytes(self) -> Vec<u8>;
     fn from_bytes(buffer: &[u8]) -> io::Result<Self>;

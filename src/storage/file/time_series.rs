@@ -17,7 +17,7 @@ use std::fs::File;
 use std::io::{self, BufReader, Seek, SeekFrom};
 use std::ops::Range;
 
-use key_value_store::{Retrieval, Storable};
+use key_value_store::{KeyValueStore, Retrieval, Storable};
 use storage::file::{binary_search_for_key, FileStorage, read_record};
 use time_series::{RetrievalDirection, TimeSeries, Timestamp};
 
@@ -144,13 +144,20 @@ impl<V> TimeSeries for FileStorage<Timestamp, V> where V: Storable<FileStorage<T
 
         Ok(Retrieval::new(Box::new(results)))
     }
+
+    fn as_key_value_store(&self) -> &dyn KeyValueStore {
+        self
+    }
+
+    fn as_mut_key_value_store(&mut self) -> &mut dyn KeyValueStore {
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use key_value_store::KeyValueStore;
     use util::SetupFile;
 
     #[test]

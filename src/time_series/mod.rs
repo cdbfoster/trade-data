@@ -16,7 +16,7 @@
 use std::io;
 use std::ops::Range;
 
-use key_value_store::Retrieval;
+use key_value_store::{KeyValueStore, Retrieval};
 
 pub type Timestamp = u64;
 
@@ -26,12 +26,15 @@ pub enum RetrievalDirection {
     Backward,
 }
 
-pub trait TimeSeries {
+pub trait TimeSeries: KeyValueStore {
     fn retrieve_nearest(&self, timestamp: Timestamp, retrieval_direction: Option<RetrievalDirection>) -> io::Result<Retrieval>;
     fn retrieve_all(&self) -> io::Result<Retrieval>;
     fn retrieve_from(&self, timestamp: Timestamp) -> io::Result<Retrieval>;
     fn retrieve_to(&self, timestamp: Timestamp) -> io::Result<Retrieval>;
     fn retrieve_range(&self, range: Range<Timestamp>) -> io::Result<Retrieval>;
+
+    fn as_key_value_store(&self) -> &dyn KeyValueStore;
+    fn as_mut_key_value_store(&mut self) -> &mut dyn KeyValueStore;
 }
 
 mod storage;

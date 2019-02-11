@@ -20,7 +20,7 @@ use std::ops::Range;
 use key_value_store::{Retrieval, Storable};
 use pooled_time_series::{GapFillMethod, Poolable, PooledTimeSeries, PoolingMethod, PoolingOptions};
 use storage::file::{FileStorage, read_record};
-use time_series::Timestamp;
+use time_series::{TimeSeries, Timestamp};
 
 impl<V> PooledTimeSeries for FileStorage<Timestamp, V> where V: Storable<FileStorage<Timestamp, V>> + Poolable {
     fn pool_all(&self, pooling_options: PoolingOptions) -> io::Result<Retrieval> {
@@ -141,6 +141,14 @@ impl<V> PooledTimeSeries for FileStorage<Timestamp, V> where V: Storable<FileSto
         )?;
 
         Ok(Retrieval::new(Box::new(values)))
+    }
+
+    fn as_time_series(&self) -> &dyn TimeSeries {
+        self
+    }
+
+    fn as_mut_time_series(&mut self) -> &mut dyn TimeSeries {
+        self
     }
 }
 

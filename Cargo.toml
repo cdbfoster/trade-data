@@ -4,3 +4,8 @@ version = "0.1.0"
 authors = ["Chris Foster <cdbfoster@gmail.com>"]
 
 [dependencies]
+lazy_static = "1.2"
+rocket = "0.4"
+rocket_contrib = "0.4"
+serde = "1.0"
+serde_derive = "1.0"
